@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>文章 · 拾光小站</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%238b5cf6'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%230a0a1a'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/css/style.css">
+  <!-- head 里的是全局脚本，软导航换页时不会重复加载 -->
+  <script src="/js/site.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/theme.js"></script>
+  <script src="/js/markdown.js"></script>
+  <!-- 全站播放器：同步执行，切页时能最早恢复播放 -->
+  <script src="/js/globalplayer.js"></script>
+  <!-- 站内软导航：不整页刷新，音乐才能真正不中断 -->
+  <script src="/js/router.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <span class="brand-dot"></span>
+      <span data-site-name>拾光小站</span>
+    </a>
+    <nav class="nav">
+      <a href="/">首页</a>
+      <a href="/songs.html">曲库</a>
+      <a href="/admin.html">后台</a>
+      <span id="nav-user"></span>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap post-page">
+  <a class="back-link" href="/">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z"/></svg>
+    返回首页
+  </a>
+
+  <article class="post" id="post">
+    <h1 class="skeleton" style="height:38px;width:62%"></h1>
+    <div class="skeleton" style="height:16px;width:34%;margin-bottom:24px"></div>
+    <div class="skeleton" style="height:15px;margin-bottom:12px"></div>
+    <div class="skeleton" style="height:15px;margin-bottom:12px"></div>
+    <div class="skeleton" style="height:15px;width:72%"></div>
+  </article>
+
+  <!-- 评论区 -->
+  <section class="comments" id="comments" hidden>
+    <h2 class="section-title">评论 <span class="count" id="comment-count"></span></h2>
+
+    <div id="comment-list"></div>
+
+    <form class="comment-form" id="comment-form" hidden>
+      <textarea class="textarea" id="comment-input" maxlength="500" style="min-height:100px"
+        placeholder="说点什么……（最多 500 字）"></textarea>
+      <div class="comment-form-row">
+        <span class="hint" style="margin:0" id="comment-hint"></span>
+        <button class="btn btn-primary btn-sm" type="submit" id="comment-submit">发表评论</button>
+      </div>
+    </form>
+
+    <div class="comment-login-tip" id="comment-login-tip" hidden>
+      <a href="/admin.html">登录</a> 后就可以发表评论了
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span data-site-name>拾光小站</span> · 用 <span class="heart">♥</span> 与 Spring Boot 搭建
+  </div>
+</footer>
+
+<div class="toast-host"></div>
+
+<!-- 页面脚本：软导航换页时会重新加载执行 -->
+<script src="/js/post.js"></script>
+</body>
+</html>

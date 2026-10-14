@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>后台 · 拾光小站</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%238b5cf6'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%230a0a1a'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/css/style.css">
+  <!-- head 里的是全局脚本，软导航换页时不会重复加载 -->
+  <script src="/js/site.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/theme.js"></script>
+  <script src="/js/markdown.js"></script>
+  <!-- 全站播放器：同步执行，切页时能最早恢复播放 -->
+  <script src="/js/globalplayer.js"></script>
+  <!-- 站内软导航：不整页刷新，音乐才能真正不中断 -->
+  <script src="/js/router.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <span class="brand-dot"></span>
+      <span data-site-name>拾光小站</span>
+    </a>
+    <nav class="nav">
+      <a href="/">首页</a>
+      <a href="/songs.html">曲库</a>
+      <a href="/admin.html" class="active">后台</a>
+      <span id="nav-user"></span>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap admin-page">
+
+  <!-- ============ 未登录：登录 / 注册 ============ -->
+  <section id="view-login" hidden>
+    <div class="glass login-card">
+      <h2 id="auth-title">登录</h2>
+      <p class="sub" id="auth-sub">登录后可以发文章、传歌、评论</p>
+
+      <form id="login-form">
+        <div class="field">
+          <label for="login-username">用户名</label>
+          <input class="input" id="login-username" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="login-password">密码</label>
+          <input class="input" id="login-password" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="btn btn-primary" type="submit" id="login-btn" style="width:100%">登录</button>
+      </form>
+
+      <form id="register-form" hidden>
+        <div class="field">
+          <label for="reg-username">用户名</label>
+          <input class="input" id="reg-username" maxlength="20" autocomplete="username" required>
+          <div class="hint">2~20 个字符，注册后不能改</div>
+        </div>
+        <div class="field">
+          <label for="reg-nickname">昵称</label>
+          <input class="input" id="reg-nickname" maxlength="20" placeholder="留空就用用户名">
+        </div>
+        <div class="field">
+          <label for="reg-password">密码</label>
+          <input class="input" id="reg-password" type="password" autocomplete="new-password" required>
+          <div class="hint">至少 6 位，会用 PBKDF2 加盐哈希后入库</div>
+        </div>
+        <button class="btn btn-primary" type="submit" id="register-btn" style="width:100%">注册</button>
+      </form>
+
+      <p class="hint" style="text-align:center;margin-top:18px">
+        <a href="#" id="auth-toggle" style="color:var(--accent);font-weight:600">还没有账号？注册一个</a>
+      </p>
+      <p class="hint" style="text-align:center" id="quota-hint"></p>
+    </div>
+  </section>
+
+  <!-- ============ 已登录：管理界面 ============ -->
+  <section id="view-admin" hidden>
+    <div class="tabs">
+      <button type="button" class="active" data-tab="write">写文章</button>
+      <button type="button" data-tab="posts">文章管理</button>
+      <button type="button" data-tab="songs">曲库管理</button>
+      <button type="button" data-tab="profile">我的资料</button>
+      <button type="button" data-tab="users" data-admin-only>用户管理</button>
+      <button type="button" data-tab="appearance" data-admin-only>站点设置</button>
+    </div>
+
+    <!-- 写文章 -->
+    <div class="panel active" id="panel-write">
+      <div class="card-pad">
+        <div class="edit-banner" id="edit-banner" hidden>
+          <span>正在编辑：<b id="edit-title"></b></span>
+          <span class="hint" style="margin:0">改完点「更新文章」，不会影响浏览数</span>
+          <button type="button" class="btn btn-sm" id="cancel-edit-btn">取消编辑</button>
+        </div>
+
+        <div class="field">
+          <label for="art-title">标题</label>
+          <input class="input" id="art-title" maxlength="100" placeholder="给文章起个名字">
+        </div>
+        <div class="field">
+          <label for="art-summary">摘要 <span style="font-weight:400;color:var(--text-faint)">（留空会自动从正文截取）</span></label>
+          <input class="input" id="art-summary" maxlength="200" placeholder="一句话概括这篇文章">
+        </div>
+
+        <div class="editor-split">
+          <div class="field" style="margin:0">
+            <label for="art-content" style="display:flex;align-items:center;gap:10px">
+              <span>正文（支持 Markdown）</span>
+              <button type="button" class="btn btn-sm" id="insert-image-btn" style="margin-left:auto">插入图片</button>
+            </label>
+            <input type="file" id="image-file" accept="image/*" hidden>
+            <textarea class="textarea code" id="art-content"
+              placeholder="# 标题&#10;&#10;支持 **粗体**、*斜体*、`行内代码`、代码块、列表、引用、链接、图片……"></textarea>
+          </div>
+          <div class="field" style="margin:0">
+            <label>实时预览</label>
+            <div class="preview-pane"><div class="md" id="art-preview"></div></div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:14px;align-items:center;margin-top:22px;flex-wrap:wrap">
+          <button class="btn btn-primary" type="button" id="publish-btn">发布文章</button>
+          <span class="hint" id="publish-hint"></span>
+          <span class="hint" id="article-quota" style="margin-left:auto"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 文章管理 -->
+    <div class="panel" id="panel-posts">
+      <h3 class="section-title" style="font-size:16.5px">全部文章 <span class="count" id="post-count"></span></h3>
+      <p class="hint" style="margin:-8px 0 16px">
+        删除会同时清掉数据库记录和它的评论，<strong>无法恢复</strong>，删之前请确认。
+      </p>
+      <div id="post-list"></div>
+    </div>
+
+    <!-- 曲库管理 -->
+    <div class="panel" id="panel-songs">
+      <div class="card-pad" style="margin-bottom:26px">
+        <h3 style="margin:0 0 20px;font-size:16.5px">上传歌曲</h3>
+        <form id="upload-form">
+          <div class="form-row two">
+            <div class="field">
+              <label for="song-title">歌名 <span style="color:var(--accent)">*</span></label>
+              <input class="input" id="song-title" maxlength="150" required>
+            </div>
+            <div class="field">
+              <label for="song-artist">歌手</label>
+              <input class="input" id="song-artist" maxlength="150" placeholder="留空显示「未知歌手」">
+            </div>
+          </div>
+
+          <div class="form-row two">
+            <div class="field">
+              <label for="song-audio">音频文件 <span style="color:var(--accent)">*</span></label>
+              <input type="file" id="song-audio" accept=".mp3,.m4a,.aac,.wav,.ogg,.flac,audio/*" required>
+              <div class="hint">mp3 / m4a / aac / wav / ogg / flac，单个最大 50MB</div>
+            </div>
+            <div class="field">
+              <label for="song-cover">封面图</label>
+              <input type="file" id="song-cover" accept="image/*">
+              <div class="hint">可选，会显示成黑胶唱片的样子</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="song-lyric">歌词</label>
+            <textarea class="textarea" id="song-lyric" style="min-height:120px" placeholder="可选，直接换行即可"></textarea>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <button class="btn btn-primary" type="submit" id="upload-btn">上传</button>
+            <span class="hint" style="margin:0" id="song-quota"></span>
+          </div>
+        </form>
+      </div>
+
+      <h3 class="section-title" style="font-size:16.5px">
+        曲库 <span class="count" id="song-count"></span>
+      </h3>
+      <p class="hint" style="margin:-8px 0 16px">
+        不手动指定时，首页会按日期在所有歌曲里自动轮换；想让某天固定推某一首，就选日期点「设为推荐」。
+      </p>
+      <div id="song-list"></div>
+    </div>
+
+    <!-- 我的资料 -->
+    <div class="panel" id="panel-profile">
+      <div class="card-pad">
+        <h3 style="margin:0 0 20px;font-size:16.5px">我的资料</h3>
+
+        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:26px">
+          <div id="profile-avatar"></div>
+          <div style="flex:1;min-width:220px">
+            <div class="field" style="margin:0">
+              <label for="avatar-file">头像</label>
+              <input type="file" id="avatar-file" accept="image/*">
+              <div class="hint">jpg / png / webp / gif，显示成圆形；不传就用昵称首字</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="nickname-input">昵称</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <input class="input" id="nickname-input" maxlength="20" style="flex:1;min-width:200px">
+            <button class="btn" type="button" id="nickname-save">保存昵称</button>
+          </div>
+          <div class="hint">昵称会显示在文章、评论和顶栏上</div>
+        </div>
+
+        <div class="hint" id="profile-quota" style="margin-top:20px"></div>
+      </div>
+    </div>
+
+    <!-- 用户管理（仅站长可见） -->
+    <div class="panel" id="panel-users">
+      <h3 class="section-title" style="font-size:16.5px">全部用户 <span class="count" id="user-count"></span></h3>
+      <p class="hint" style="margin:-8px 0 16px">
+        被禁言的用户<strong>不能再发表评论</strong>，但仍然可以浏览网站、播放歌曲。
+        别人发的文章和评论你随时可以删除 —— 在「文章管理」里，或直接到文章页的评论区点删除。
+      </p>
+      <div id="user-list"></div>
+    </div>
+
+    <!-- 站点设置 -->
+    <div class="panel" id="panel-appearance">
+
+      <!-- 主题配色 -->
+      <div class="card-pad" style="margin-bottom:26px">
+        <h3 style="margin:0 0 8px;font-size:16.5px">主题配色</h3>
+        <p class="hint" style="margin:0 0 20px">
+          选好颜色后点「保存配色」。整站的颜色都会跟着变 ——
+          按钮、链接、卡片光晕、<strong>连背景的极光渐变也是</strong>。
+          调色时会立刻在页面上看到效果，不用来回切换。
+        </p>
+
+        <div class="field">
+          <label>预设配色</label>
+          <div class="preset-grid" id="preset-grid"></div>
+        </div>
+
+        <div class="field" style="margin-bottom:6px">
+          <label>自定义颜色</label>
+          <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr))">
+            <div>
+              <div class="color-field">
+                <input type="color" id="theme-accent" class="color-input" value="#ff7ac6">
+                <input type="text" id="theme-accent-hex" class="input" maxlength="7" spellcheck="false" value="#ff7ac6">
+              </div>
+              <div class="hint">主色 · 按钮与链接</div>
+            </div>
+            <div>
+              <div class="color-field">
+                <input type="color" id="theme-accent2" class="color-input" value="#8b5cf6">
+                <input type="text" id="theme-accent2-hex" class="input" maxlength="7" spellcheck="false" value="#8b5cf6">
+              </div>
+              <div class="hint">辅色 · 渐变另一端</div>
+            </div>
+            <div>
+              <div class="color-field">
+                <input type="color" id="theme-accent3" class="color-input" value="#38bdf8">
+                <input type="text" id="theme-accent3-hex" class="input" maxlength="7" spellcheck="false" value="#38bdf8">
+              </div>
+              <div class="hint">点缀色 · 标题渐变末尾</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:22px">
+          <button class="btn btn-primary" type="button" id="theme-save-btn">保存配色</button>
+          <button class="btn" type="button" id="theme-extract-btn">从背景图自动提取</button>
+          <button class="btn btn-danger" type="button" id="theme-reset-btn">恢复默认配色</button>
+        </div>
+      </div>
+
+      <div class="card-pad" style="margin-bottom:26px">
+        <h3 style="margin:0 0 20px;font-size:16.5px">网站背景图</h3>
+
+        <div class="field">
+          <label for="bg-file">选择图片</label>
+          <input type="file" id="bg-file" accept="image/*">
+          <div class="hint">
+            支持 jpg / png / webp / gif。建议用 1920×1080 以上的横图，
+            文件控制在 5MB 以内 —— 图越大，访客打开首页越慢
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="bg-dim">
+            遮罩深浅 <span class="range-val" id="bg-dim-value">60%</span>
+          </label>
+          <input type="range" id="bg-dim" class="range" min="0" max="100" step="1" value="60">
+          <div class="hint">
+            背景图上会盖一层黑色遮罩。数值<strong>越小背景照片越清楚</strong>，越大则文字越突出。<br>
+            实测建议 50~70：这个区间里照片看得清、文字也不吃力。
+            照片本身很亮很花（比如白天风景）就往 70 以上调；
+            照片偏暗（夜景、深色抽象图）就调到 40 左右，否则整张图会糊成一片黑。
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:22px">
+          <button class="btn btn-primary" type="button" id="bg-upload-btn">上传并应用</button>
+          <button class="btn btn-danger" type="button" id="bg-clear-btn">恢复默认背景</button>
+        </div>
+      </div>
+
+      <h3 class="section-title" style="font-size:16.5px">效果预览</h3>
+      <p class="hint" style="margin:-8px 0 16px">
+        下面是真实套用后的样子，拖动上面的滑块可以实时看到遮罩变化。
+      </p>
+      <div class="bg-preview" id="bg-preview">
+        <div class="bg-preview-inner">
+          <div class="preview-card">
+            <span data-site-name>拾光小站</span>
+            <div class="sub">这是文章卡片的毛玻璃效果预览</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span data-site-name>拾光小站</span> · 用 <span class="heart">♥</span> 与 Spring Boot 搭建
+  </div>
+</footer>
+
+<div class="toast-host"></div>
+
+<!-- 页面脚本：软导航换页时会重新加载执行 -->
+<script src="/js/admin.js"></script>
+</body>
+</html>

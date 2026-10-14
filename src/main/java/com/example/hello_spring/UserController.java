@@ -1,0 +1,193 @@
+package com.example.hello_spring;
+
+import com.example.hello_spring.common.Auth;
+import com.example.hello_spring.common.FileStorage;
+import com.example.hello_spring.common.PasswordUtil;
+import com.example.hello_spring.common.Result;
+import com.example.hello_spring.entity.User;
+import com.example.hello_spring.mapper.ArticleMapper;
+import com.example.hello_spring.mapper.SongMapper;
+import com.example.hello_spring.mapper.UserMapper;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+
+@RestController
+@RequestMapping("/user")
+public class UserController {
+
+    private static final Set<String> IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp", "gif");
+
+    @Autowired
+    private UserMapper userMapper;
+
+    @Autowired
+    private ArticleMapper articleMapper;
+
+    @Autowired
+    private SongMapper songMapper;
+
+    @Value("${app.upload-dir}")
+    private String uploadDir;
+
+    /** 是否开放注册 */
+    @Value("${app.registration-enabled:true}")
+    private boolean registrationEnabled;
+
+    /** 全站账号上限 */
+    @Value("${app.max-users:10}")
+    private int maxUsers;
+
+    /** 每人文章上限 */
+    @Value("${app.max-articles-per-user:10}")
+    private int maxArticlesPerUser;
+
+    /** 每人歌曲上限 */
+    @Value("${app.max-songs-per-user:10}")
+    private int maxSongsPerUser;
+
+    @PostMapping("/register")
+    public Result<String> register(@RequestBody User user) {
+        if (isBlank(user.getUsername()) || isBlank(user.getPassword())) {
+            return Result.error("用户名和密码不能为空");
+        }
+        if (user.getUsername().trim().length() < 2 || user.getUsername().trim().length() > 20) {
+            return Result.error("用户名长度需要在 2~20 个字符之间");
+        }
+        if (user.getPassword().length() < 6) {
+            return Result.error("密码至少 6 位");
+        }
+        if (!registrationEnabled) {
+            return Result.error("站点已关闭注册");
+        }
+        // 全站名额限制
+        if (userMapper.countAll() >= maxUsers) {
+            return Result.error("注册名额已满（本站最多 " + maxUsers + " 个账号）");
+        }
+        if (userMapper.findByUsername(user.getUsername().trim()) != null) {
+            return Result.error("用户名已存在");
+        }
+
+        User newUser = new User();
+        newUser.setUsername(user.getUsername().trim());
+        // 只把哈希后的密码写入数据库，明文不落库
+        newUser.setPassword(PasswordUtil.hash(user.getPassword()));
+        newUser.setNickname(isBlank(user.getNickname()) ? user.getUsername().trim() : user.getNickname().trim());
+        userMapper.insertUser(newUser);
+
+        int remaining = maxUsers - userMapper.countAll();
+        return Result.success("注册成功" + (remaining > 0 ? "，本站还有 " + remaining + " 个名额" : ""));
+    }
+
+    @PostMapping("/login")
+    public Result<User> login(@RequestBody User user, HttpSession session) {
+        if (isBlank(user.getUsername()) || isBlank(user.getPassword())) {
+            return Result.error("用户名和密码不能为空");
+        }
+        User existingUser = userMapper.findByUsername(user.getUsername().trim());
+        // 用户不存在与密码错误返回同一提示，避免暴露哪些用户名已注册
+        if (existingUser == null || !PasswordUtil.matches(user.getPassword(), existingUser.getPassword())) {
+            return Result.error("用户名或密码错误");
+        }
+
+        // 登录成功，把用户信息存进 Session（剔除密码摘要，避免随会话外泄）
+        existingUser.setPassword(null);
+        session.setAttribute("loginUser", existingUser);
+        return Result.success(existingUser);
+    }
+
+    /** 当前登录状态：未登录时 data 为 null，前端据此决定是否展示后台入口 */
+    @GetMapping("/me")
+    public Result<User> me(HttpSession session) {
+        return Result.success(Auth.current(session));
+    }
+
+    /** 注册名额情况（公开）：登录/注册卡片上显示「还剩 N 个名额」 */
+    @GetMapping("/quota")
+    public Result<Map<String, Object>> quota() {
+        int used = userMapper.countAll();
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("maxUsers", maxUsers);
+        data.put("used", used);
+        data.put("remaining", Math.max(0, maxUsers - used));
+        data.put("registrationEnabled", registrationEnabled);
+        return Result.success(data);
+    }
+
+    /** 我自己的配额使用情况（需登录）：已发几篇文章、已传几首歌 */
+    @GetMapping("/limits")
+    public Result<Map<String, Object>> limits(HttpSession session) {
+        User me = Auth.current(session);
+        if (me == null) {
+            return Result.error("请先登录");
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("maxArticles", maxArticlesPerUser);
+        data.put("myArticles", articleMapper.countByUser(me.getId()));
+        data.put("maxSongs", maxSongsPerUser);
+        data.put("mySongs", songMapper.countByUser(me.getId()));
+        data.put("isAdmin", Auth.isAdmin(me));
+        return Result.success(data);
+    }
+
+    @PostMapping("/logout")
+    public Result<String> logout(HttpSession session) {
+        session.invalidate();
+        return Result.success("已退出登录");
+    }
+
+    /** 上传头像（需登录），同时删掉旧头像文件 */
+    @PostMapping("/avatar")
+    public Result<String> uploadAvatar(@RequestParam("avatar") MultipartFile file, HttpSession session) {
+        User me = Auth.current(session);
+        if (me == null) {
+            return Result.error("请先登录");
+        }
+        if (file == null || file.isEmpty()) {
+            return Result.error("请选择图片");
+        }
+
+        String url = FileStorage.save(file, uploadDir, "avatar", IMAGE_EXTENSIONS);
+        if (url == null) {
+            return Result.error("图片格式不支持，请上传 jpg / png / webp / gif");
+        }
+
+        String old = me.getAvatar();
+        userMapper.updateAvatar(me.getId(), url);
+        if (old != null && !old.equals(url)) {
+            FileStorage.delete(uploadDir, old);
+        }
+
+        // 同步 Session 里的对象，前端不用重新登录
+        me.setAvatar(url);
+        session.setAttribute("loginUser", me);
+        return Result.success(url);
+    }
+
+    /** 修改昵称（需登录） */
+    @PostMapping("/nickname")
+    public Result<String> updateNickname(@RequestParam String nickname, HttpSession session) {
+        User me = Auth.current(session);
+        if (me == null) {
+            return Result.error("请先登录");
+        }
+        String name = nickname == null ? "" : nickname.trim();
+        if (name.isEmpty() || name.length() > 20) {
+            return Result.error("昵称需要 1~20 个字符");
+        }
+        userMapper.updateNickname(me.getId(), name);
+        me.setNickname(name);
+        session.setAttribute("loginUser", me);
+        return Result.success("昵称已改为 " + name);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+}

@@ -1,0 +1,47 @@
+# ============================================================
+#  拾光小站 · Git 忽略规则
+# ============================================================
+
+# ---------- 构建产物 ----------
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# ---------- IDE ----------
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+.springBeans
+.sts4-cache
+.apt_generated
+
+# ---------- 本地私密配置（含数据库密码，切勿提交）----------
+# 本地开发用，放在项目根目录，不会被打进 jar
+application-local.properties
+application-local.yml
+application-local.yaml
+.env
+
+# ---------- 用户上传的内容（音频 / 封面 / 头像 / 背景图）----------
+uploads/
+
+# ---------- 开发过程截图 ----------
+# 只忽略根目录下的原始截图；写 README 用的整理版在 docs/screenshots/，要入库
+/screenshots/
+
+# ---------- 其他 ----------
+HELP.md
+*.log
+
+# 终端会话导出文件（与本项目无关）
+dsh-tui-export-*.md
+
+# ---------- 操作系统 ----------
+.DS_Store
+Thumbs.db
+desktop.ini

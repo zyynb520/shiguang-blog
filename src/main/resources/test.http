@@ -1,0 +1,87 @@
+### ============================================================
+###  接口测试脚本（IDEA 里点每段左侧的 ▶ 即可运行）
+###  登录成功后 IDEA 会自动记住 JSESSIONID，后续请求自动带上
+### ============================================================
+
+### 1. 注册（密码会用 PBKDF2 加盐哈希后入库，明文不落库）
+POST http://localhost:8080/user/register
+Content-Type: application/json
+
+{
+  "username": "xiaoming",
+  "password": "123456",
+  "nickname": "小明"
+}
+
+### 2. 登录（发文章、上传歌曲前必须先跑这个）
+POST http://localhost:8080/user/login
+Content-Type: application/json
+
+{
+  "username": "xiaoming",
+  "password": "123456"
+}
+
+### 3. 当前登录状态（未登录时 data 为 null）
+GET http://localhost:8080/user/me
+
+### 4. 退出登录
+POST http://localhost:8080/user/logout
+
+
+### ============================================================
+###  文章
+### ============================================================
+
+### 5. 发布文章（需要登录，未登录返回 HTTP 401）
+POST http://localhost:8080/article/publish
+Content-Type: application/json
+
+{
+  "title": "我的第一篇文章",
+  "content": "# 标题\n\n支持 **Markdown**：\n\n- 列表项\n- `行内代码`\n\n```java\nSystem.out.println(\"hello\");\n```\n\n> 引用",
+  "summary": "摘要（留空会由前端自动从正文截取）"
+}
+
+### 6. 文章列表（公开，游客可访问）
+GET http://localhost:8080/article/list
+
+### 7. 文章详情（公开，每次访问浏览数 +1；文章不存在时 code 为 400）
+GET http://localhost:8080/article/detail/1
+
+
+### ============================================================
+###  每日推歌
+### ============================================================
+
+### 8. 今日推歌（公开）
+###    规则：该日期被手动指定过就返回指定那首，否则在全部歌曲里按日期轮换
+GET http://localhost:8080/song/today
+
+### 9. 指定某天的推歌（date 省略则为今天）
+GET http://localhost:8080/song/today?date=2026-10-20
+
+### 10. 曲库列表（公开）
+GET http://localhost:8080/song/list
+
+### 11. 上传歌曲（需要登录）
+###     注意：上传接口是 multipart/form-data，用 IDEA 的 .http 文件手写比较麻烦，
+###     直接在网页后台 /admin.html 的「曲库管理」里上传更省事。
+###     这里只留下推荐和删除两个接口便于调试：
+
+### 12. 手动指定某天推哪首（songId 换成曲库列表里的真实 id）
+POST http://localhost:8080/song/recommend?songId=1&date=2026-10-20
+
+### 13. 删除歌曲（只删数据库记录，磁盘上的音频文件会保留）
+POST http://localhost:8080/song/delete?id=1
+
+
+### ============================================================
+###  其他
+### ============================================================
+
+### 14. 调试接口：全部用户（已过滤 password 字段）
+GET http://localhost:8080/users
+
+### 15. 上传文件的访问路径形如（上传后可在浏览器直接打开）
+GET http://localhost:8080/uploads/audio/xxxxxxxx.wav

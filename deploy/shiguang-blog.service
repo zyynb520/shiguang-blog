@@ -1,0 +1,32 @@
+[Unit]
+Description=Shiguang Blog (Spring Boot)
+Documentation=file:/opt/shiguang/DEPLOY.md
+After=network-online.target mysql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=shiguang
+Group=shiguang
+WorkingDirectory=/opt/shiguang
+
+# 数据库密码等敏感配置放在这个文件里，权限应为 600
+EnvironmentFile=/opt/shiguang/.env
+
+# -Duser.timezone 很重要：「每日推歌」按 LocalDate.now() 选歌，
+# 服务器如果是 UTC，你那边晚上 8 点之后就会变成"明天"。
+ExecStart=/usr/bin/java -Xms256m -Xmx512m -Duser.timezone=Asia/Shanghai -jar /opt/shiguang/app.jar
+
+# Spring Boot 收到 SIGTERM 会优雅停机，退出码是 143（128+15），不算失败
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+
+# 基础安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

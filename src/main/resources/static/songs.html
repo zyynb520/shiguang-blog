@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>曲库 · 拾光小站</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%238b5cf6'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%230a0a1a'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/css/style.css">
+  <!-- head 里的是全局脚本，软导航换页时不会重复加载 -->
+  <script src="/js/site.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/theme.js"></script>
+  <!-- 全站播放器：同步执行，切页时能最早恢复播放 -->
+  <script src="/js/globalplayer.js"></script>
+  <!-- 站内软导航：不整页刷新，音乐才能真正不中断 -->
+  <script src="/js/router.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <span class="brand-dot"></span>
+      <span data-site-name>拾光小站</span>
+    </a>
+    <nav class="nav">
+      <a href="/">首页</a>
+      <a href="/songs.html" class="active">曲库</a>
+      <a href="/admin.html">后台</a>
+      <span id="nav-user"></span>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap songs-page">
+
+  <section class="page-head">
+    <h1>曲库</h1>
+    <p>站里所有人推荐过的歌，点一下就能听</p>
+    <div class="chips">
+      <span class="chip">曲库 <b id="stat-total">–</b> 首</span>
+      <span class="chip">今日推荐 <b id="stat-today">–</b></span>
+    </div>
+  </section>
+
+  <!-- 今日推荐（大卡片） -->
+  <section id="today-block" hidden></section>
+
+  <h2 class="section-title" style="margin-top:32px">
+    全部歌曲 <span class="count" id="list-count"></span>
+  </h2>
+
+  <div class="song-grid" id="song-grid">
+    <div class="skeleton" style="height:250px;border-radius:22px"></div>
+    <div class="skeleton" style="height:250px;border-radius:22px"></div>
+    <div class="skeleton" style="height:250px;border-radius:22px"></div>
+    <div class="skeleton" style="height:250px;border-radius:22px"></div>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span data-site-name>拾光小站</span> · 用 <span class="heart">♥</span> 与 Spring Boot 搭建
+  </div>
+</footer>
+
+<!-- 底部播放条由 globalplayer.js 注入（这样切页时状态能延续） -->
+
+<div class="toast-host"></div>
+
+<!-- 页面脚本：软导航换页时会重新加载执行 -->
+<script src="/js/songs.js"></script>
+</body>
+</html>

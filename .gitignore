@@ -30,6 +30,11 @@ application-local.yaml
 # ---------- 用户上传的内容（音频 / 封面 / 头像 / 背景图）----------
 uploads/
 
+# ---------- 安全审计报告 ----------
+# 含服务器公网地址与未修复的漏洞细节，公开出去等于给攻击者一份攻击指南
+SECURITY-AUDIT.local.md
+*-AUDIT.local.md
+
 # ---------- 开发过程截图 ----------
 # 只忽略根目录下的原始截图；写 README 用的整理版在 docs/screenshots/，要入库
 /screenshots/

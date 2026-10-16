@@ -239,7 +239,7 @@
 
   /** null 表示新建；有值表示正在编辑这篇文章 */
   var editingId = null;
-  /** 文章列表缓存，编辑时按 id 取回内容（不用 /article/detail，免得刷浏览量） */
+  /** 文章列表缓存：编辑时按 id 直接取回内容，省掉一次请求（浏览量已与读取解耦，不再受影响） */
   var articleCache = [];
 
   function updatePreview() {

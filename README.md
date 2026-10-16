@@ -61,7 +61,7 @@
 ### 文章
 
 - 发布 / 编辑 / 删除，支持 Markdown（自己手写的轻量渲染器）
-- 列表按时间倒序，详情页浏览量自动 +1
+- 列表按时间倒序；浏览量**去重统计**（同一访客同一篇 24 小时只计一次，刷新与爬虫不计）
 - **每人文章上限**（默认 10 篇），发布后提示「已发 N/10 篇」
 - 编辑器带**实时预览**，正文可插入图片
 - 作者只能改自己的文章，站长可以管理所有人的
@@ -294,12 +294,16 @@ UPDATE `user` SET `role` = 'admin' WHERE `username` = '你的用户名';
 | 方法 | 路径 | 说明 | 权限 |
 |---|---|---|---|
 | GET | `/article/list` | 全部文章（时间倒序） | 公开 |
-| GET | `/article/detail/{id}` | 文章详情，**浏览量 +1** | 公开 |
+| GET | `/article/detail/{id}` | 文章详情（**纯读取，不产生副作用**） | 公开 |
+| POST | `/article/{id}/view` | 上报一次浏览（服务端判定后计数，返回最新值） | 公开 |
 | POST | `/article/publish` | 发布文章 | 需登录 |
 | POST | `/article/update` | 编辑文章 | 需登录 + 作者或站长 |
 | POST | `/article/delete` | 删除文章（连带清掉评论） | 需登录 + 作者或站长 |
 
 标题上限 100 字、摘要上限 200 字。编辑**不会**重置浏览量。
+
+> 浏览量刻意与「读详情」分开：GET 保持无副作用，计数交给前端渲染完成后调用的
+> `POST /article/{id}/view`，细节见[浏览量设计](#浏览量get-必须无副作用--两层去重)。
 
 ### 评论 `/comment`
 
@@ -497,14 +501,42 @@ if (picked == null) {
 - `markdown.js` 只在部分页面的 `<head>` 里，切到文章页时需要按页补加载；
 - 播放状态存在 `sessionStorage` 的 `shiguang.player.state`，整页刷新或新标签页时仍能恢复进度。
 
-### 浏览量的一个细节
+### 浏览量：GET 必须无副作用 + 两层去重
+
+浏览量最早是在 `GET /article/detail/{id}` 里直接 `view_count + 1`，这样有三个问题：
+浏览器预取、爬虫、扫描器都会被当成一次阅读；刷新一次算一次；而且让 GET 产生副作用本身就违反了 HTTP 语义。
+
+现在拆成两步：
+
+1. `GET /article/detail/{id}` —— **纯读取**，不做任何写操作，可以被缓存、被预取；
+2. `POST /article/{id}/view` —— 前端在**正文真正渲染出来之后**才上报，由 `ArticleViewRecorder` 决定这次算不算。
+
+判定是两层，都通过才 +1：
+
+| 层级 | 存储 | 窗口 | 拦掉的是什么 |
+|---|---|---|---|
+| 浏览器 | Cookie `sg_viewed`（记录已读文章 id） | 24 小时 | 同一浏览器反复打开同一篇 |
+| IP | 服务进程内存 | 10 分钟 | 清掉 Cookie 再刷、爬虫快速抓取 |
+
+两个取舍值得说明：
+
+- **状态放客户端而不是建一张浏览记录表**：不用改表结构、不用每次浏览多写一行，
+  也不记录访客标识（省掉隐私成本）。代价是清 Cookie 能绕过第一层，所以才有第二层兜底。
+- **IP 优先取 `X-Real-IP`**：应用只监听 `127.0.0.1`，`getRemoteAddr()` 拿到的永远是本机地址。
+  这里读 nginx 写入的 `X-Real-IP`（值是 `$remote_addr`，客户端伪造不了）；
+  退化取 `X-Forwarded-For` 的**最后一段**而不是第一段 —— nginx 用 `$proxy_add_x_forwarded_for`，
+  它会把客户端自己传来的值留在最前面，只有最后一段可信。
+
+效果：写库次数从「每次打开详情页一次」降到「每人每篇每 24 小时一次」，而 GET 完全只读。
+
+另外 `+1` 的 SQL 里显式写了 `update_time = update_time`：
 
 ```sql
 UPDATE article SET view_count = view_count + 1, update_time = update_time WHERE id = ?
 ```
 
-`update_time` 列有 `ON UPDATE CURRENT_TIMESTAMP`。如果不管它，「最后浏览时间」会把「最后编辑时间」覆盖掉，
-所以这里显式把它赋值为自己，让 MySQL 跳过自动更新。
+`update_time` 列有 `ON UPDATE CURRENT_TIMESTAMP`，不这样写的话「最后被浏览的时间」会覆盖「最后编辑时间」，
+显式赋值可以让 MySQL 跳过自动更新。
 
 ---
 
@@ -527,7 +559,6 @@ UPDATE article SET view_count = view_count + 1, update_time = update_time WHERE 
 - 图片白名单里包含 `webp`，但 JDK 的 `ImageIO` 不支持解码 webp，
   所以 webp 背景图**能上传却无法自动取色**
 - `markdown.js` 未校验链接的 URL scheme，`[x](javascript:...)` 会被原样输出（属性逃逸已被封堵，属低危）
-- 浏览量没有去重，刷新页面就会累加
 - Session 存在内存里，服务重启即全员登出，也暂时无法多机部署
 - 注册与登录没有频率限制和验证码，只靠全站名额上限兜底
 

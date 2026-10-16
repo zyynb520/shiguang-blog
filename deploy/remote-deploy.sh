@@ -103,6 +103,17 @@ for p in /article/publish /article/update /article/delete /song/upload /song/del
 done
 
 echo ""
+echo "=== 8b. 浏览上报接口（公开接口，必须匿名可访问）==="
+# 0 号文章不存在，期望拿回业务错误 code 400：
+#   若返回 401 说明被拦截器误拦了；若 404 说明路由没注册
+VIEW_RESP=$(curl -s --max-time 5 -X POST "http://127.0.0.1:8080/article/0/view")
+printf "  %-18s %s\n" "/article/0/view" "$VIEW_RESP"
+case "$VIEW_RESP" in
+  *'"code":400'*) : ;;
+  *) echo "  !! 浏览上报接口异常（期望匿名可访问并返回 code 400）"; FAIL=1 ;;
+esac
+
+echo ""
 echo "=== 9. 日志里的异常 ==="
 ERRS=$(journalctl -u "$SERVICE" --since "2 min ago" --no-pager | grep -icE 'error|exception' || true)
 echo "  错误条数: $ERRS"

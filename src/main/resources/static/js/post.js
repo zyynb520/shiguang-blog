@@ -68,10 +68,20 @@
         '</span>' +
         '<span>' +
           '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5C6.5 5 2.7 9.1 1.5 12c1.2 2.9 5 7 10.5 7s9.3-4.1 10.5-7C21.3 9.1 17.5 5 12 5zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-2a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>' +
-          (a.viewCount || 0) + ' 次浏览' +
+          '<span id="view-count">' + (a.viewCount || 0) + '</span> 次浏览' +
         '</span>' +
       '</div>' +
       '<div class="md">' + window.markdown.render(a.content) + '</div>';
+
+    // 正文渲染完成后才上报浏览。
+    // 这样爬虫、预取、加载失败的访问都不会计入；服务端还会做
+    // 「同一浏览器 24 小时、同一 IP 10 分钟」的重复过滤，返回最新浏览数。
+    API.postParams('/article/' + articleId + '/view').then(function (r) {
+      if (r.ok && typeof r.data === 'number') {
+        var el = document.getElementById('view-count');
+        if (el) el.textContent = r.data;
+      }
+    });
   }
 
   /* ---------------- 评论区 ---------------- */

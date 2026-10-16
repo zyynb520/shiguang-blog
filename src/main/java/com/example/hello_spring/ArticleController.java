@@ -1,10 +1,13 @@
 package com.example.hello_spring;
 
+import com.example.hello_spring.common.ArticleViewRecorder;
 import com.example.hello_spring.common.Auth;
 import com.example.hello_spring.common.Result;
 import com.example.hello_spring.entity.Article;
 import com.example.hello_spring.entity.User;
 import com.example.hello_spring.mapper.ArticleMapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +21,10 @@ public class ArticleController {
 
     @Autowired
     private ArticleMapper articleMapper;
+
+    /** 浏览量的去重策略，见 {@link ArticleViewRecorder} */
+    @Autowired
+    private ArticleViewRecorder viewRecorder;
 
     /** 每个用户最多发布多少篇文章 */
     @Value("${app.max-articles-per-user:10}")
@@ -60,13 +67,52 @@ public class ArticleController {
         return Result.success(articleMapper.findAllArticles());
     }
 
+    /**
+     * 文章详情（公开）。
+     *
+     * <p><b>刻意不在这里 +1 浏览量。</b>GET 按 HTTP 语义必须是"安全的"（不改变服务端状态），
+     * 一旦在这里写库，浏览器预取、爬虫、扫描器、以及任何一次刷新都会把浏览量刷上去。
+     * 浏览量改由前端在正文真正渲染完之后调 {@code POST /article/{id}/view} 上报。
+     */
     @GetMapping("/detail/{id}")
     public Result<Article> detail(@PathVariable Integer id) {
-        // 先把浏览数 +1：受影响行数为 0 说明这篇文章不存在
-        if (articleMapper.increaseViewCount(id) == 0) {
+        Article article = articleMapper.findById(id);
+        if (article == null) {
             return Result.error("文章不存在");
         }
-        return Result.success(articleMapper.findById(id));
+        return Result.success(article);
+    }
+
+    /**
+     * 上报一次浏览（公开，不需要登录）。
+     *
+     * <p>和「读详情」拆开的好处：
+     * <ul>
+     *   <li>GET 恢复成纯读，可以被缓存、被预取，计数不受影响；</li>
+     *   <li>爬虫和扫描器不会执行 JavaScript，天然不计入；</li>
+     *   <li>只有真正把正文渲染出来的访问才算，加载失败的页面不算。</li>
+     * </ul>
+     *
+     * <p>是否真的 +1 由 {@link ArticleViewRecorder} 判定：
+     * 同一浏览器 24 小时内、同一 IP 10 分钟内对同一篇文章只计一次。
+     *
+     * @return 记录后的最新浏览量，前端直接拿它刷新页面上的数字
+     */
+    @PostMapping("/{id}/view")
+    public Result<Integer> view(@PathVariable Integer id,
+                                HttpServletRequest request,
+                                HttpServletResponse response) {
+        Article article = articleMapper.findById(id);
+        if (article == null) {
+            return Result.error("文章不存在");
+        }
+
+        int current = article.getViewCount() == null ? 0 : article.getViewCount();
+        if (viewRecorder.shouldCount(request, response, id)) {
+            articleMapper.increaseViewCount(id);
+            current++;
+        }
+        return Result.success(current);
     }
 
     /**

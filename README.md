@@ -233,6 +233,7 @@ UPDATE `user` SET `role` = 'admin' WHERE `username` = '你的用户名';
 | `UPLOAD_DIR` | `uploads` | 上传文件目录，服务器上建议填绝对路径 |
 | `STATIC_LOCATIONS` | `classpath:/static/` | 设为 `file:/opt/shiguang/static/,classpath:/static/` 可让外部目录优先，改前端不用重新打包 |
 | `REGISTRATION_ENABLED` | `true` | 是否开放注册 |
+| `REQUIRE_HTTPS_LOGIN` | `false` | 是否强制登录 / 注册走 HTTPS（本地开发保持 false） |
 | `MAX_USERS` | `10` | 全站账号上限 |
 | `MAX_ARTICLES_PER_USER` | `10` | 每人文章上限 |
 | `MAX_SONGS_PER_USER` | `10` | 每人歌曲上限 |

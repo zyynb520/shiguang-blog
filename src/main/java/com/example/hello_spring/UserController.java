@@ -3,11 +3,13 @@ package com.example.hello_spring;
 import com.example.hello_spring.common.Auth;
 import com.example.hello_spring.common.FileStorage;
 import com.example.hello_spring.common.PasswordUtil;
+import com.example.hello_spring.common.RequestSecurity;
 import com.example.hello_spring.common.Result;
 import com.example.hello_spring.entity.User;
 import com.example.hello_spring.mapper.ArticleMapper;
 import com.example.hello_spring.mapper.SongMapper;
 import com.example.hello_spring.mapper.UserMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +25,9 @@ import java.util.Set;
 public class UserController {
 
     private static final Set<String> IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp", "gif");
+
+    /** 开启强制 HTTPS 后，明文请求登录/注册时给用户的提示 */
+    private static final String HTTPS_REQUIRED = "本站已开启安全登录，请把地址改成 https:// 开头后重试";
 
     @Autowired
     private UserMapper userMapper;
@@ -52,8 +57,16 @@ public class UserController {
     @Value("${app.max-songs-per-user:10}")
     private int maxSongsPerUser;
 
+    /** 是否强制登录 / 注册走 HTTPS（服务器上开；本地开发默认关，不影响 localhost:8080） */
+    @Value("${app.require-https-login:false}")
+    private boolean requireHttpsLogin;
+
     @PostMapping("/register")
-    public Result<String> register(@RequestBody User user) {
+    public Result<String> register(@RequestBody User user, HttpServletRequest request) {
+        // 注册也要提交密码，所以和登录一样受这条限制
+        if (requireHttpsLogin && !RequestSecurity.isSecure(request)) {
+            return Result.error(HTTPS_REQUIRED);
+        }
         if (isBlank(user.getUsername()) || isBlank(user.getPassword())) {
             return Result.error("用户名和密码不能为空");
         }
@@ -86,7 +99,11 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public Result<User> login(@RequestBody User user, HttpSession session) {
+    public Result<User> login(@RequestBody User user, HttpSession session, HttpServletRequest request) {
+        // 明文 HTTP 下不允许提交密码，避免在公共 WiFi 这类链路上被嗅探
+        if (requireHttpsLogin && !RequestSecurity.isSecure(request)) {
+            return Result.error(HTTPS_REQUIRED);
+        }
         if (isBlank(user.getUsername()) || isBlank(user.getPassword())) {
             return Result.error("用户名和密码不能为空");
         }

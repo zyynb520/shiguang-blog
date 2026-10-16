@@ -642,6 +642,46 @@
     }
   });
 
+  /* ---------------- 站点设置：站点图标 ---------------- */
+  var logoFileEl = document.getElementById('logo-file');
+
+  document.getElementById('logo-upload-btn').addEventListener('click', async function () {
+    if (!logoFileEl.files.length) {
+      window.toast('请先选一张图片', 'err');
+      return;
+    }
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = '上传中…';
+
+    var fd = new FormData();
+    fd.append('image', logoFileEl.files[0]);
+    var res = await API.postForm('/setting/logo', fd);
+
+    btn.disabled = false;
+    btn.textContent = '上传并应用';
+
+    if (res.ok) {
+      logoFileEl.value = '';
+      // 图标是通过 :root 的 CSS 变量生效的，重拉一次设置就会套用
+      if (window.Theme) window.Theme.reload();
+      window.toast('图标已更新，顶栏和标签页都会变');
+    } else {
+      window.toast(res.msg, 'err');
+    }
+  });
+
+  document.getElementById('logo-clear-btn').addEventListener('click', async function () {
+    if (!confirm('确定恢复默认图标吗？')) return;
+    var res = await API.postParams('/setting/clearLogo', {});
+    if (res.ok) {
+      if (window.Theme) window.Theme.reload();
+      window.toast('已恢复默认图标');
+    } else {
+      window.toast(res.msg, 'err');
+    }
+  });
+
   /* ---------------- 站点设置：背景图 ---------------- */
   var bgImageUrl = '';
   var bgFileEl = document.getElementById('bg-file');

@@ -38,10 +38,12 @@ public class SettingController {
     private static final String KEY_ACCENT2 = "accent2";
     private static final String KEY_ACCENT3 = "accent3";
     private static final String KEY_THEME_PRESET = "themePreset";
+    private static final String KEY_LOGO_IMAGE = "logoImage";
 
     /** 只允许这几个键，避免这个接口被用来往数据库塞任意内容 */
     private static final Set<String> ALLOWED_KEYS = Set.of(
-            KEY_BG_IMAGE, KEY_BG_DIM, KEY_ACCENT, KEY_ACCENT2, KEY_ACCENT3, KEY_THEME_PRESET);
+            KEY_BG_IMAGE, KEY_BG_DIM, KEY_ACCENT, KEY_ACCENT2, KEY_ACCENT3, KEY_THEME_PRESET,
+            KEY_LOGO_IMAGE);
 
     /** 默认遮罩深浅（0~100）。实测 60 是折中值：背景照片看得清，文字也不吃力 */
     private static final int DEFAULT_DIM = 60;
@@ -129,6 +131,51 @@ public class SettingController {
                 : "已恢复默认背景（原文件删除失败，可能是已被手动清理）");
     }
 
+    /**
+     * 上传站点图标。
+     *
+     * <p>它会出现在两个地方：顶栏站名左边那个圆形标记，以及浏览器标签页的图标。
+     * 没设置时用内置的渐变圆点。
+     */
+    @PostMapping("/logo")
+    public Result<Map<String, String>> uploadLogo(@RequestParam("image") MultipartFile image,
+                                                  HttpSession session) {
+        if (notAdmin(session)) {
+            return Result.error(ADMIN_ONLY);
+        }
+        if (image == null || image.isEmpty()) {
+            return Result.error("请选择要上传的图片");
+        }
+        String url = FileStorage.save(image, uploadDir, "logo", IMAGE_EXTENSIONS);
+        if (url == null) {
+            return Result.error("图片格式不支持，请上传 jpg / png / webp / gif");
+        }
+
+        // 换图标时把旧文件删掉，否则每换一次就多留一个文件
+        String oldUrl = siteSettingMapper.findValue(KEY_LOGO_IMAGE);
+        if (oldUrl != null && !oldUrl.equals(url)) {
+            FileStorage.delete(uploadDir, oldUrl);
+        }
+
+        siteSettingMapper.upsert(KEY_LOGO_IMAGE, url);
+        return Result.success(currentSettings());
+    }
+
+    /** 恢复默认图标（内置的渐变圆点），并删掉上传的图标文件 */
+    @PostMapping("/clearLogo")
+    public Result<String> clearLogo(HttpSession session) {
+        if (notAdmin(session)) {
+            return Result.error(ADMIN_ONLY);
+        }
+        String oldUrl = siteSettingMapper.findValue(KEY_LOGO_IMAGE);
+        siteSettingMapper.delete(KEY_LOGO_IMAGE);
+
+        boolean removed = oldUrl == null || FileStorage.delete(uploadDir, oldUrl);
+        return Result.success(removed
+                ? "已恢复默认图标，原图标文件已删除"
+                : "已恢复默认图标（原文件删除失败，可能是已被手动清理）");
+    }
+
     /** 保存主题配色 */
     @PostMapping("/theme")
     public Result<Map<String, String>> saveTheme(@RequestParam String accent,
@@ -208,6 +255,7 @@ public class SettingController {
         map.put(KEY_ACCENT2, DEFAULT_ACCENT2);
         map.put(KEY_ACCENT3, DEFAULT_ACCENT3);
         map.put(KEY_THEME_PRESET, DEFAULT_PRESET);
+        map.put(KEY_LOGO_IMAGE, "");
 
         List<SiteSetting> all = siteSettingMapper.findAll();
         for (SiteSetting s : all) {

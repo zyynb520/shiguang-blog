@@ -281,6 +281,25 @@
       </div>
 
       <div class="card-pad" style="margin-bottom:26px">
+        <h3 style="margin:0 0 20px;font-size:16.5px">站点图标</h3>
+
+        <div class="field">
+          <label for="logo-file">选择图片</label>
+          <input type="file" id="logo-file" accept="image/*">
+          <div class="hint">
+            会用在两个地方：<strong>顶栏站名左边那个圆</strong>，以及浏览器标签页的图标。<br>
+            建议用<strong>正方形</strong>图片（256×256 就够），内容别贴边 —— 显示时会被裁成圆形。
+            文件控制在 200KB 以内，太大只会拖慢每次打开页面的速度。
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:22px">
+          <button class="btn btn-primary" type="button" id="logo-upload-btn">上传并应用</button>
+          <button class="btn btn-danger" type="button" id="logo-clear-btn">恢复默认图标</button>
+        </div>
+      </div>
+
+      <div class="card-pad" style="margin-bottom:26px">
         <h3 style="margin:0 0 20px;font-size:16.5px">网站背景图</h3>
 
         <div class="field">

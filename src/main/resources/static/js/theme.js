@@ -3,6 +3,15 @@
  * 三个页面都会加载它；拉不到就保持默认外观，不会报错。
  */
 (function () {
+  /**
+   * 记住 HTML 里写死的默认 favicon（一段内联 SVG）。
+   * 后台清空自定义图标时用它还原，省得在 JS 里再抄一份。
+   */
+  var defaultFavicon = (function () {
+    var link = document.querySelector('link[rel="icon"]');
+    return link ? link.getAttribute('href') : null;
+  })();
+
   /** 只接受站内 /uploads/ 路径或 http(s) 链接，避免配置里被塞进奇怪的 URL */
   function safeUrl(url) {
     if (!url) return null;
@@ -64,10 +73,37 @@
     document.body.classList.add('has-bg');
   }
 
+  /**
+   * 站点图标：顶栏站名左边那个圆点，以及浏览器标签页的图标。
+   *
+   * 刻意「改 :root 上的 CSS 变量 + <html> 上的类」而不是直接操作那个圆点元素：
+   * 软导航换页时 body 整体被替换，圆点元素会重新创建，直接改它会丢掉图标；
+   * 而 :root 和 <html> 是跨页存活的，胶囊一改，新页面自然就带上图标了。
+   */
+  function applyLogo(data) {
+    var logo = safeUrl(data && data.logoImage);
+    var root = document.documentElement;
+
+    if (logo) {
+      root.style.setProperty('--logo-image', 'url("' + logo + '")');
+      root.classList.add('has-logo');
+    } else {
+      root.style.removeProperty('--logo-image');
+      root.classList.remove('has-logo');
+    }
+
+    // 标签页图标跟着一起换；没设置就用 HTML 里写死的默认 SVG
+    var link = document.querySelector('link[rel="icon"]');
+    if (link && defaultFavicon) {
+      link.setAttribute('href', logo || defaultFavicon);
+    }
+  }
+
   function apply(data) {
     if (!data) return;
     applyTheme(data);
     applyBackground(data);
+    applyLogo(data);
   }
 
   function load() {

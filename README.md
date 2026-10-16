@@ -84,6 +84,7 @@
 - 6 套预设配色 + 自定义三色主题
 - **从背景图自动提取一套协调配色**（纯 JDK 实现，不依赖任何图像库）
 - 自定义背景图 + 遮罩深浅调节，带实时预览
+- **自定义站点图标**：顶栏站名左边那个圆 + 浏览器标签页图标，一张图同时生效
 
 ### 全局音乐播放器
 
@@ -333,6 +334,8 @@ UPDATE `user` SET `role` = 'admin' WHERE `username` = '你的用户名';
 | POST | `/setting/bg` | 上传背景图 | 仅站长 |
 | POST | `/setting/dim` | 调整遮罩深浅（自动夹在 0~100） | 仅站长 |
 | POST | `/setting/clearBg` | 恢复默认背景（保留主题配色） | 仅站长 |
+| POST | `/setting/logo` | 上传站点图标（顶栏圆点 + 标签页图标） | 仅站长 |
+| POST | `/setting/clearLogo` | 恢复默认图标（内置渐变圆点） | 仅站长 |
 | POST | `/setting/theme` | 保存三色主题（校验 `#rrggbb`） | 仅站长 |
 | POST | `/setting/theme/extract` | **从背景图自动提取配色** | 仅站长 |
 | POST | `/setting/theme/reset` | 恢复默认配色 | 仅站长 |
@@ -364,7 +367,7 @@ UPDATE `user` SET `role` = 'admin' WHERE `username` = '你的用户名';
 | `article` | 文章 | `user_id`、`title`、`content`(Markdown)、`summary`、`view_count`、`create_time`、`update_time` |
 | `comment` | 评论 | `article_id`、`user_id`、`content`(≤500) |
 | `song` | 曲库 | `title`、`artist`、`cover_url`、`audio_url`、`lyric`、`user_id`、`recommend_date`(唯一索引) |
-| `site_setting` | 站点配置 | 键值对：`bgImage`、`bgDim`、`accent`、`accent2`、`accent3`、`themePreset` |
+| `site_setting` | 站点配置 | 键值对：`bgImage`、`bgDim`、`logoImage`、`accent`、`accent2`、`accent3`、`themePreset` |
 
 两个设计上的小讲究：
 
@@ -431,7 +434,7 @@ cd 项目根目录
 `deploy.ps1` 依次做：**本地构建 → 算 SHA256 → scp 到服务器 → 远端脚本校验摘要 → 备份旧包（只留最近 5 份）
 → 停服务换包 → 启动并轮询就绪（最多 90 秒）→ 冒烟测试 → 失败自动回滚**。
 
-冒烟测试是正反两面的：**15 个读接口必须全部 200**，同时 **13 个写接口在未登录时必须全部 401**
+冒烟测试是正反两面的：**15 个读接口必须全部 200**，同时 **15 个写接口在未登录时必须全部 401**
 （防止拦截器配置被改坏却没人发现）。
 
 ---

@@ -34,6 +34,8 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/setting/bg")
                 .addPathPatterns("/setting/dim")
                 .addPathPatterns("/setting/clearBg")
+                .addPathPatterns("/setting/logo")
+                .addPathPatterns("/setting/clearLogo")
                 .addPathPatterns("/setting/theme")
                 .addPathPatterns("/setting/theme/extract")
                 .addPathPatterns("/setting/theme/reset");

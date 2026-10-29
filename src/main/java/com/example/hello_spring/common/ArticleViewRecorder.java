@@ -41,6 +41,16 @@ public class ArticleViewRecorder {
     /** 记录「看过哪些文章」的 Cookie 名 */
     private static final String COOKIE_NAME = "sg_viewed";
 
+    /**
+     * 多个文章 id 之间的分隔符。
+     *
+     * <p>必须用 {@code -} 这类安全字符：RFC 6265 规定 cookie 值只能是 cookie-octet，
+     * <b>逗号不在允许范围内</b>，用逗号拼会被 Spring 的 {@code ResponseCookie}
+     * 直接抛 {@code IllegalArgumentException: RFC2616 cookie value cannot have ','}，
+     * 导致看过第二篇文章的访客统计直接失败。
+     */
+    private static final String ID_SEPARATOR = "-";
+
     /** Cookie 与「浏览器维度去重」的有效期 */
     private static final Duration BROWSER_WINDOW = Duration.ofHours(24);
 
@@ -128,7 +138,7 @@ public class ArticleViewRecorder {
             if (value == null || value.isBlank()) {
                 continue;
             }
-            for (String part : value.split(",")) {
+            for (String part : value.split(ID_SEPARATOR)) {
                 try {
                     ids.add(Integer.parseInt(part.trim()));
                 } catch (NumberFormatException ignored) {
@@ -147,13 +157,13 @@ public class ArticleViewRecorder {
         StringBuilder value = new StringBuilder();
         for (int id : ids) {
             if (value.length() > 0) {
-                value.append(',');
+                value.append(ID_SEPARATOR);
             }
             value.append(id);
         }
 
-        // 注意：暂时不能加 Secure —— 站点还没上 HTTPS，加了浏览器就不会回传，去重会失效。
-        // 等配好 HTTPS 后把 .secure(true) 打开。
+        // 注意：这里不能加 Secure —— 80 端口仍在对外服务（访客走 HTTP），
+        // 加了 Secure 浏览器不会回传 Cookie，去重会失效、浏览量会被重复计数。
         ResponseCookie cookie = ResponseCookie.from(COOKIE_NAME, value.toString())
                 .path("/")
                 .maxAge(BROWSER_WINDOW)

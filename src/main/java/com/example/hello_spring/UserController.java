@@ -174,10 +174,10 @@ public class UserController {
     /** 当前登录状态：未登录时 data 为 null，前端据此决定是否展示后台入口 */
     @GetMapping("/me")
     public Result<User> me(HttpSession session) {
-        // 关闭登录时一律当作未登录，避免残留的旧会话在页面上露出"已登录"的外观
-        if (!loginEnabled) {
-            return Result.success(null);
-        }
+        // 注意：这里不能因为 loginEnabled=false 就返回 null ——
+        // 白名单 IP 的站长是能正常登录的，一旦这里返回 null，前端会以为没登录，
+        // 登录成功的界面又会退回登录框。控制「谁能登录」的闸门在 /user/login，
+        // 会话里既然有 loginUser，就说明这个人确实通过了登录校验。
         return Result.success(Auth.current(session));
     }
 

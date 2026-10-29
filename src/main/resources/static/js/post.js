@@ -27,7 +27,8 @@
 
     if (currentUser) {
       var name = currentUser.nickname || currentUser.username;
-      host.innerHTML = '<span class="nav-user">' +
+      // 登录后给一个回后台的入口：「后台」链接只在已登录时渲染，公开访客看不到
+      host.innerHTML = '<a href="/admin.html">后台</a><span class="nav-user">' +
         window.avatarHtml(name, currentUser.avatar, 26) + esc(name) + '</span>';
     } else {
       // 只读模式下顶栏不留任何入口按钮；开放登录后再按注册开关决定是否显示「注册」

@@ -30,7 +30,9 @@
       host.innerHTML = '<span class="nav-user">' +
         window.avatarHtml(name, currentUser.avatar, 26) + esc(name) + '</span>';
     } else {
-      host.innerHTML = '<a href="/admin.html">登录</a><a href="/admin.html#register">注册</a>';
+      // 站点关闭注册时，顶栏不该还留着「注册」入口
+      host.innerHTML = '<a href="/admin.html">登录</a>' +
+        (await window.loadRegistrationOpen() ? '<a href="/admin.html#register">注册</a>' : '');
     }
   }
 
@@ -108,17 +110,22 @@
     document.getElementById('comments').hidden = false;
 
     var res = await API.get('/comment/list?articleId=' + articleId);
-    var list = (res.ok && res.data) ? res.data : [];
+    // 接口返回的是 { enabled, comments }：enabled=false 表示评论功能已关闭
+    var data = (res.ok && res.data) ? res.data : { enabled: false, comments: [] };
+    var list = data.comments || [];
+    var open = data.enabled !== false;
 
-    document.getElementById('comment-count').textContent = list.length ? '共 ' + list.length + ' 条' : '';
+    document.getElementById('comment-count').textContent =
+      (open && list.length) ? '共 ' + list.length + ' 条' : '';
     document.getElementById('comment-list').innerHTML = list.length
       ? list.map(commentHtml).join('')
-      : '<div class="empty" style="padding:28px 12px">还没有评论，来说第一句吧</div>';
+      : '<div class="empty" style="padding:28px 12px">' +
+        (open ? '还没有评论，来说第一句吧' : '评论功能已暂时关闭') + '</div>';
 
-    // 登录了才能评论
-    document.getElementById('comment-form').hidden = !currentUser;
-    document.getElementById('comment-login-tip').hidden = !!currentUser;
-    if (currentUser) {
+    // 登录了才能评论；功能关闭时整个输入区都不显示
+    document.getElementById('comment-form').hidden = !open || !currentUser;
+    document.getElementById('comment-login-tip').hidden = !open || !!currentUser;
+    if (open && currentUser) {
       document.getElementById('comment-hint').innerHTML =
         '以 <b>' + esc(currentUser.nickname || currentUser.username) + '</b> 的身份评论';
     }

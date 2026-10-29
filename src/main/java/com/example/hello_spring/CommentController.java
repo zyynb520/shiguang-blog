@@ -9,9 +9,12 @@ import com.example.hello_spring.mapper.CommentMapper;
 import com.example.hello_spring.mapper.UserMapper;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 文章评论。
@@ -33,15 +36,36 @@ public class CommentController {
     @Autowired
     private UserMapper userMapper;
 
-    /** 某篇文章的评论列表（公开） */
+    /**
+     * 评论功能开关。
+     *
+     * <p>备案期间等场景需要暂时关掉用户生成内容（UGC）时设为 false：
+     * 关闭后列表返回空、发表评论直接拒绝，但接口本身仍然存在，
+     * 站长依然可以删除历史评论做清理。
+     */
+    @Value("${app.comments-enabled:true}")
+    private boolean commentsEnabled;
+
+    /**
+     * 某篇文章的评论列表（公开）。
+     *
+     * <p>返回 {@code {enabled, comments}} 而不是裸数组：前端需要知道
+     * 「评论功能当前是否开放」，才能决定显示输入框还是关闭提示。
+     */
     @GetMapping("/list")
-    public Result<List<Comment>> list(@RequestParam Integer articleId) {
-        return Result.success(commentMapper.findByArticleId(articleId));
+    public Result<Map<String, Object>> list(@RequestParam Integer articleId) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("enabled", commentsEnabled);
+        data.put("comments", commentsEnabled ? commentMapper.findByArticleId(articleId) : List.of());
+        return Result.success(data);
     }
 
     /** 发表评论（需登录） */
     @PostMapping("/add")
     public Result<Comment> add(@RequestBody Comment body, HttpSession session) {
+        if (!commentsEnabled) {
+            return Result.error("评论功能已暂时关闭");
+        }
         User me = Auth.current(session);
         if (me == null) {
             return Result.error("请先登录后再评论");

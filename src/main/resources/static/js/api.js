@@ -113,6 +113,24 @@
 
   /* ---------------- 轻提示 ---------------- */
 
+  /**
+   * 注册入口是否开放。
+   *
+   * <p>顶栏的「注册」链接要根据这个决定显不显示（站点关闭注册时不该还留着入口）。
+   * 结果缓存在 window 上，多个页面脚本共用一次请求；软导航换页也不会重复请求。
+   * 请求失败时保守返回 true —— 宁可多显示一个链接，也别把正常访客挡住。
+   */
+  window.loadRegistrationOpen = function () {
+    if (!window.__regOpenPromise) {
+      window.__regOpenPromise = request('/user/quota').then(function (res) {
+        return !!(res.ok && res.data && res.data.registrationEnabled);
+      }).catch(function () {
+        return true;
+      });
+    }
+    return window.__regOpenPromise;
+  };
+
   window.toast = function (msg, type) {
     var host = document.querySelector('.toast-host');
     if (!host) {

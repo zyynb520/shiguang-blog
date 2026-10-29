@@ -233,13 +233,20 @@ UPDATE `user` SET `role` = 'admin' WHERE `username` = '你的用户名';
 | `UPLOAD_DIR` | `uploads` | 上传文件目录，服务器上建议填绝对路径 |
 | `STATIC_LOCATIONS` | `classpath:/static/` | 设为 `file:/opt/shiguang/static/,classpath:/static/` 可让外部目录优先，改前端不用重新打包 |
 | `REGISTRATION_ENABLED` | `true` | 是否开放注册 |
+| `COMMENTS_ENABLED` | `true` | 是否开放评论（关闭后只显示「评论功能已暂时关闭」） |
 | `REQUIRE_HTTPS_LOGIN` | `false` | 是否强制登录 / 注册走 HTTPS（本地开发保持 false） |
 | `MAX_USERS` | `10` | 全站账号上限 |
 | `MAX_ARTICLES_PER_USER` | `10` | 每人文章上限 |
 | `MAX_SONGS_PER_USER` | `10` | 每人歌曲上限 |
 | `SERVER_ADDRESS` | `127.0.0.1`（仅 prod） | 只监听回环，对外由 nginx 反代 |
 
-也就是说：想改配额或临时关闭注册，**不用改代码也不用重新打包**，在服务器 `.env` 里加一行再重启即可。
+也就是说：想改配额、临时关闭注册或评论，**不用改代码也不用重新打包**，在服务器 `.env` 里加一行再重启即可。
+比如备案期间需要暂时去掉用户生成内容：
+
+```bash
+REGISTRATION_ENABLED=false   # 关闭注册（顶栏的「注册」链接会自动隐藏）
+COMMENTS_ENABLED=false       # 关闭评论（文章页只显示「评论功能已暂时关闭」）
+```
 
 ---
 

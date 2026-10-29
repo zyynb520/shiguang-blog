@@ -26,7 +26,9 @@
       host.innerHTML = '<span class="nav-user">' +
         window.avatarHtml(name, res.data.avatar, 26) + esc(name) + '</span>';
     } else {
-      host.innerHTML = '<a href="/admin.html">登录</a><a href="/admin.html#register">注册</a>';
+      // 站点关闭注册时，顶栏不该还留着「注册」入口
+      host.innerHTML = '<a href="/admin.html">登录</a>' +
+        (await window.loadRegistrationOpen() ? '<a href="/admin.html#register">注册</a>' : '');
     }
   }
 

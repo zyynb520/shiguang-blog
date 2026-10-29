@@ -71,6 +71,42 @@ public class UserController {
     @Value("${app.login-enabled:true}")
     private boolean loginEnabled;
 
+    /**
+     * 允许登录的 IP 白名单（逗号分隔；留空表示不限制）。
+     *
+     * <p>备案审核期间的推荐做法：{@code LOGIN_ENABLED} 保持 false（整站只读、
+     * 页面上没有任何入口），同时把自己的 IP 加进这个白名单 ——
+     * 这样站长本人能照常登录发文，公开访客点不到入口、也用不了登录。
+     */
+    @Value("${app.login-allowed-ips:}")
+    private String loginAllowedIpsRaw;
+
+    /** 这个 IP 是否在白名单里（白名单为空则恒为 false） */
+    private boolean ipWhitelisted(String ip) {
+        if (loginAllowedIpsRaw == null || loginAllowedIpsRaw.isBlank()) {
+            return false;
+        }
+        for (String part : loginAllowedIpsRaw.split(",")) {
+            if (part.trim().equals(ip)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 这次请求是否允许登录。
+     *
+     * <p>白名单内的 IP <b>始终</b>允许（不受总开关影响）；其余访客看总开关。
+     * 这样「对外只读」和「自己能管站」可以同时成立。
+     */
+    private boolean loginAllowedFor(HttpServletRequest request) {
+        if (ipWhitelisted(RequestSecurity.clientIp(request))) {
+            return true;
+        }
+        return loginEnabled;
+    }
+
     @PostMapping("/register")
     public Result<String> register(@RequestBody User user, HttpServletRequest request) {
         // 注册也要提交密码，所以和登录一样受这条限制
@@ -110,9 +146,11 @@ public class UserController {
 
     @PostMapping("/login")
     public Result<User> login(@RequestBody User user, HttpSession session, HttpServletRequest request) {
-        // 只读模式：整站不开放登录（备案审核期间靠这个开关）
-        if (!loginEnabled) {
-            return Result.error("站点当前为只读模式，暂不开放登录");
+        // 只读模式：除白名单 IP 外一律不开放登录（备案审核期间靠这个开关）
+        if (!loginAllowedFor(request)) {
+            return loginEnabled
+                    ? Result.error("当前网络不允许登录")
+                    : Result.error("站点当前为只读模式，暂不开放登录");
         }
         // 明文 HTTP 下不允许提交密码，避免在公共 WiFi 这类链路上被嗅探
         if (requireHttpsLogin && !RequestSecurity.isSecure(request)) {
@@ -145,15 +183,16 @@ public class UserController {
 
     /** 注册名额情况（公开）：登录/注册卡片上显示「还剩 N 个名额」 */
     @GetMapping("/quota")
-    public Result<Map<String, Object>> quota() {
+    public Result<Map<String, Object>> quota(HttpServletRequest request) {
         int used = userMapper.countAll();
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("maxUsers", maxUsers);
         data.put("used", used);
         data.put("remaining", Math.max(0, maxUsers - used));
         data.put("registrationEnabled", registrationEnabled);
-        // 前端靠这两个开关决定顶栏显不显示「登录 / 注册」入口
-        data.put("loginEnabled", loginEnabled);
+        // 前端靠这两个开关决定顶栏显不显示「登录 / 注册」入口。
+        // loginEnabled 按请求方 IP 计算：白名单内的站长能看到入口，其他人看不到
+        data.put("loginEnabled", loginAllowedFor(request));
         return Result.success(data);
     }
 

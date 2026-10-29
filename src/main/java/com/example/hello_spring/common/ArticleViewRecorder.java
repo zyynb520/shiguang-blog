@@ -85,32 +85,11 @@ public class ArticleViewRecorder {
     }
 
     /**
-     * 取客户端真实 IP。
-     *
-     * <p>应用只监听 127.0.0.1，请求都来自本机 nginx，所以 {@code getRemoteAddr()}
-     * 拿到的是 127.0.0.1，必须读 nginx 转发的头：
-     * <ul>
-     *   <li>优先 {@code X-Real-IP}：nginx 里写的是 {@code $remote_addr}，
-     *       <b>客户端伪造不了</b>；</li>
-     *   <li>退化取 {@code X-Forwarded-For} 的<b>最后一段</b>：nginx 用的是
-     *       {@code $proxy_add_x_forwarded_for}，它会把客户端自己传来的值留在前面，
-     *       所以第一段可以被伪造，只有最后一段（nginx 追加的真实地址）可信。</li>
-     * </ul>
+     * 取客户端真实 IP（实现见 {@link RequestSecurity#clientIp}）。
+     * 浏览量去重与登录 IP 白名单共用同一份逻辑，避免两处判断口径不一致。
      */
     private static String clientIp(HttpServletRequest request) {
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp.trim();
-        }
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            int lastComma = forwarded.lastIndexOf(',');
-            String candidate = lastComma >= 0 ? forwarded.substring(lastComma + 1) : forwarded;
-            if (!candidate.isBlank()) {
-                return candidate.trim();
-            }
-        }
-        return request.getRemoteAddr();
+        return RequestSecurity.clientIp(request);
     }
 
     private boolean allowByIp(int articleId, String ip) {

@@ -3,11 +3,13 @@ package com.example.hello_spring.config;
 import com.example.hello_spring.interceptor.LoginInterceptor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.nio.file.Paths;
+import java.time.Duration;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -45,6 +47,10 @@ public class WebConfig implements WebMvcConfigurer {
         if (!location.endsWith("/")) {
             location += "/"; // 目录不存在时 toUri() 不会补斜杠，缺了 Spring 会告警
         }
-        registry.addResourceHandler("/uploads/**").addResourceLocations(location);
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations(location)
+                // 上传文件用的是内容哈希文件名（如 6c53bc86….png），URL 一旦变化就意味着
+                // 换了新文件，所以可以放心让浏览器长期缓存，省掉音频的重复请求。
+                .setCacheControl(CacheControl.maxAge(Duration.ofDays(30)).cachePublic());
     }
 }

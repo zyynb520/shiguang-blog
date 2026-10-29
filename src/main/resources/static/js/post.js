@@ -30,9 +30,12 @@
       host.innerHTML = '<span class="nav-user">' +
         window.avatarHtml(name, currentUser.avatar, 26) + esc(name) + '</span>';
     } else {
-      // 站点关闭注册时，顶栏不该还留着「注册」入口
-      host.innerHTML = '<a href="/admin.html">登录</a>' +
-        (await window.loadRegistrationOpen() ? '<a href="/admin.html#register">注册</a>' : '');
+      // 只读模式下顶栏不留任何入口按钮；开放登录后再按注册开关决定是否显示「注册」
+      var cap = await window.loadSiteCapabilities();
+      host.innerHTML = cap.loginEnabled
+        ? '<a href="/admin.html">登录</a>' +
+          (cap.registrationEnabled ? '<a href="/admin.html#register">注册</a>' : '')
+        : '';
     }
   }
 
@@ -107,25 +110,35 @@
 
   async function loadComments() {
     if (!articleId) return;
-    document.getElementById('comments').hidden = false;
 
     var res = await API.get('/comment/list?articleId=' + articleId);
     // 接口返回的是 { enabled, comments }：enabled=false 表示评论功能已关闭
     var data = (res.ok && res.data) ? res.data : { enabled: false, comments: [] };
-    var list = data.comments || [];
     var open = data.enabled !== false;
 
-    document.getElementById('comment-count').textContent =
-      (open && list.length) ? '共 ' + list.length + ' 条' : '';
+    // 只读模式：整块评论区都不渲染（标题、列表、输入框、登录提示一起藏掉），
+    // 页面上不留任何"能评论"的痕迹
+    if (!open) {
+      document.getElementById('comments').hidden = true;
+      return;
+    }
+    document.getElementById('comments').hidden = false;
+
+    var list = data.comments || [];
+
+    document.getElementById('comment-count').textContent = list.length ? '共 ' + list.length + ' 条' : '';
     document.getElementById('comment-list').innerHTML = list.length
       ? list.map(commentHtml).join('')
-      : '<div class="empty" style="padding:28px 12px">' +
-        (open ? '还没有评论，来说第一句吧' : '评论功能已暂时关闭') + '</div>';
+      : '<div class="empty" style="padding:28px 12px">还没有评论，来说第一句吧</div>';
 
-    // 登录了才能评论；功能关闭时整个输入区都不显示
-    document.getElementById('comment-form').hidden = !open || !currentUser;
-    document.getElementById('comment-login-tip').hidden = !open || !!currentUser;
-    if (open && currentUser) {
+    // 登录了才能评论
+    document.getElementById('comment-form').hidden = !currentUser;
+    document.getElementById('comment-login-tip').hidden = !!currentUser;
+    if (!currentUser) {
+      // 文案放在 JS 里而不是 HTML 里：只读模式下页面源码不该出现交互字样
+      document.getElementById('comment-login-tip').textContent = '登录后就可以发表评论了';
+    }
+    if (currentUser) {
       document.getElementById('comment-hint').innerHTML =
         '以 <b>' + esc(currentUser.nickname || currentUser.username) + '</b> 的身份评论';
     }

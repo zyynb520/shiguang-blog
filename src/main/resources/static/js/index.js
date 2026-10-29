@@ -26,9 +26,12 @@
       host.innerHTML = '<span class="nav-user">' +
         window.avatarHtml(name, res.data.avatar, 26) + esc(name) + '</span>';
     } else {
-      // 站点关闭注册时，顶栏不该还留着「注册」入口
-      host.innerHTML = '<a href="/admin.html">登录</a>' +
-        (await window.loadRegistrationOpen() ? '<a href="/admin.html#register">注册</a>' : '');
+      // 只读模式下顶栏不留任何入口按钮；开放登录后再按注册开关决定是否显示「注册」
+      var cap = await window.loadSiteCapabilities();
+      host.innerHTML = cap.loginEnabled
+        ? '<a href="/admin.html">登录</a>' +
+          (cap.registrationEnabled ? '<a href="/admin.html#register">注册</a>' : '')
+        : '';
     }
   }
 

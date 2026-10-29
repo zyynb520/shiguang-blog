@@ -114,21 +114,29 @@
   /* ---------------- 轻提示 ---------------- */
 
   /**
-   * 注册入口是否开放。
+   * 站点当前开放了哪些能力（登录 / 注册）。
    *
-   * <p>顶栏的「注册」链接要根据这个决定显不显示（站点关闭注册时不该还留着入口）。
-   * 结果缓存在 window 上，多个页面脚本共用一次请求；软导航换页也不会重复请求。
-   * 请求失败时保守返回 true —— 宁可多显示一个链接，也别把正常访客挡住。
+   * <p>顶栏要据此决定显不显示「登录 / 注册」入口 —— 站点处于只读模式时，
+   * 页面上不该留任何交互入口。结果缓存在 window 上，多页面脚本共用一次请求。
+   *
+   * <p>请求失败时保守地当作「都关闭」：备案审核期间宁可少显示一个按钮，
+   * 也不能多露出一个交互入口。
    */
-  window.loadRegistrationOpen = function () {
-    if (!window.__regOpenPromise) {
-      window.__regOpenPromise = request('/user/quota').then(function (res) {
-        return !!(res.ok && res.data && res.data.registrationEnabled);
+  window.loadSiteCapabilities = function () {
+    if (!window.__capPromise) {
+      window.__capPromise = request('/user/quota').then(function (res) {
+        if (res.ok && res.data) {
+          return {
+            loginEnabled: res.data.loginEnabled !== false,
+            registrationEnabled: res.data.registrationEnabled === true
+          };
+        }
+        return { loginEnabled: false, registrationEnabled: false };
       }).catch(function () {
-        return true;
+        return { loginEnabled: false, registrationEnabled: false };
       });
     }
-    return window.__regOpenPromise;
+    return window.__capPromise;
   };
 
   window.toast = function (msg, type) {

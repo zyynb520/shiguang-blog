@@ -61,6 +61,16 @@ public class UserController {
     @Value("${app.require-https-login:false}")
     private boolean requireHttpsLogin;
 
+    /**
+     * 是否开放登录。
+     *
+     * <p>备案审核期间设为 false，让整站变成纯只读：不开放注册、登录、评论，
+     * 页面上也不留任何入口按钮（前端靠 /user/quota 返回的 loginEnabled 判断）。
+     * 审核通过后改回 true 重启即可恢复后台管理。
+     */
+    @Value("${app.login-enabled:true}")
+    private boolean loginEnabled;
+
     @PostMapping("/register")
     public Result<String> register(@RequestBody User user, HttpServletRequest request) {
         // 注册也要提交密码，所以和登录一样受这条限制
@@ -100,6 +110,10 @@ public class UserController {
 
     @PostMapping("/login")
     public Result<User> login(@RequestBody User user, HttpSession session, HttpServletRequest request) {
+        // 只读模式：整站不开放登录（备案审核期间靠这个开关）
+        if (!loginEnabled) {
+            return Result.error("站点当前为只读模式，暂不开放登录");
+        }
         // 明文 HTTP 下不允许提交密码，避免在公共 WiFi 这类链路上被嗅探
         if (requireHttpsLogin && !RequestSecurity.isSecure(request)) {
             return Result.error(HTTPS_REQUIRED);
@@ -122,6 +136,10 @@ public class UserController {
     /** 当前登录状态：未登录时 data 为 null，前端据此决定是否展示后台入口 */
     @GetMapping("/me")
     public Result<User> me(HttpSession session) {
+        // 关闭登录时一律当作未登录，避免残留的旧会话在页面上露出"已登录"的外观
+        if (!loginEnabled) {
+            return Result.success(null);
+        }
         return Result.success(Auth.current(session));
     }
 
@@ -134,6 +152,8 @@ public class UserController {
         data.put("used", used);
         data.put("remaining", Math.max(0, maxUsers - used));
         data.put("registrationEnabled", registrationEnabled);
+        // 前端靠这两个开关决定顶栏显不显示「登录 / 注册」入口
+        data.put("loginEnabled", loginEnabled);
         return Result.success(data);
     }
 

@@ -41,14 +41,6 @@ public class UserController {
     @Value("${app.upload-dir}")
     private String uploadDir;
 
-    /** 是否开放注册 */
-    @Value("${app.registration-enabled:true}")
-    private boolean registrationEnabled;
-
-    /** 全站账号上限 */
-    @Value("${app.max-users:10}")
-    private int maxUsers;
-
     /** 每人文章上限 */
     @Value("${app.max-articles-per-user:10}")
     private int maxArticlesPerUser;
@@ -107,43 +99,6 @@ public class UserController {
         return loginEnabled;
     }
 
-    @PostMapping("/register")
-    public Result<String> register(@RequestBody User user, HttpServletRequest request) {
-        // 注册也要提交密码，所以和登录一样受这条限制
-        if (requireHttpsLogin && !RequestSecurity.isSecure(request)) {
-            return Result.error(HTTPS_REQUIRED);
-        }
-        if (isBlank(user.getUsername()) || isBlank(user.getPassword())) {
-            return Result.error("用户名和密码不能为空");
-        }
-        if (user.getUsername().trim().length() < 2 || user.getUsername().trim().length() > 20) {
-            return Result.error("用户名长度需要在 2~20 个字符之间");
-        }
-        if (user.getPassword().length() < 6) {
-            return Result.error("密码至少 6 位");
-        }
-        if (!registrationEnabled) {
-            return Result.error("站点已关闭注册");
-        }
-        // 全站名额限制
-        if (userMapper.countAll() >= maxUsers) {
-            return Result.error("注册名额已满（本站最多 " + maxUsers + " 个账号）");
-        }
-        if (userMapper.findByUsername(user.getUsername().trim()) != null) {
-            return Result.error("用户名已存在");
-        }
-
-        User newUser = new User();
-        newUser.setUsername(user.getUsername().trim());
-        // 只把哈希后的密码写入数据库，明文不落库
-        newUser.setPassword(PasswordUtil.hash(user.getPassword()));
-        newUser.setNickname(isBlank(user.getNickname()) ? user.getUsername().trim() : user.getNickname().trim());
-        userMapper.insertUser(newUser);
-
-        int remaining = maxUsers - userMapper.countAll();
-        return Result.success("注册成功" + (remaining > 0 ? "，本站还有 " + remaining + " 个名额" : ""));
-    }
-
     @PostMapping("/login")
     public Result<User> login(@RequestBody User user, HttpSession session, HttpServletRequest request) {
         // 只读模式：除白名单 IP 外一律不开放登录（备案审核期间靠这个开关）
@@ -164,6 +119,11 @@ public class UserController {
         if (existingUser == null || !PasswordUtil.matches(user.getPassword(), existingUser.getPassword())) {
             return Result.error("用户名或密码错误");
         }
+        // 本站只允许站长登录（对外不提供任何注册渠道）。
+        // 放在密码校验之后判断，避免通过提示反推出库里有哪些账号。
+        if (!Auth.isAdmin(existingUser)) {
+            return Result.error("本站只允许站长登录");
+        }
 
         // 登录成功，把用户信息存进 Session（剔除密码摘要，避免随会话外泄）
         existingUser.setPassword(null);
@@ -181,17 +141,16 @@ public class UserController {
         return Result.success(Auth.current(session));
     }
 
-    /** 注册名额情况（公开）：登录/注册卡片上显示「还剩 N 个名额」 */
+    /**
+     * 站点对外能力（公开）：现在只暴露「是否显示登录入口」。
+     *
+     * <p>站点已删除注册功能，这里是前端判断能不能显示「登录」的唯一依据 ——
+     * 只对站长本人和登录白名单内的 IP 返回 true，其余访客拿到 false，
+     * 页面就不会渲染任何入口。路径沿用 {@code /user/quota} 是为了不改前端与部署脚本。
+     */
     @GetMapping("/quota")
     public Result<Map<String, Object>> quota(HttpServletRequest request) {
-        int used = userMapper.countAll();
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("maxUsers", maxUsers);
-        data.put("used", used);
-        data.put("remaining", Math.max(0, maxUsers - used));
-        data.put("registrationEnabled", registrationEnabled);
-        // 前端靠这两个开关决定顶栏显不显示「登录 / 注册」入口。
-        // loginEnabled 按请求方 IP 计算：白名单内的站长能看到入口，其他人看不到
         data.put("loginEnabled", loginAllowedFor(request));
         return Result.success(data);
     }

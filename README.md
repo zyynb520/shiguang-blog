@@ -2,7 +2,7 @@
 
 > 记录代码、音乐与日常，把喜欢的东西都留下来。
 
-一个从零手写的个人博客 + 曲库小站：多用户注册发文、评论互动、每日自动推歌、站点主题自定义。
+一个从零手写的个人博客 + 曲库小站：站长独自维护、每日自动推歌、站点主题自定义。
 后端 Spring Boot + MyBatis + MySQL，前端**原生 HTML / CSS / JavaScript，零框架、零 CDN、零构建工具**，已部署到阿里云 ECS。
 
 **在线预览**：部署后换成自己的地址，例如 `http://<你的域名或服务器IP>/`
@@ -53,8 +53,8 @@
 
 ### 用户
 
-- 注册 / 登录 / 退出，登录态存 Session
-- **全站账号上限**（默认 10 个），注册页实时显示「还剩 N 个名额」
+- 登录 / 退出，登录态存 Session；**只允许站长账号登录，没有注册入口**
+- 登录入口默认只对站长本人和 IP 白名单显示，公开访客页面上看不到任何入口
 - 修改昵称、上传头像（自动删除旧头像文件）
 - 密码使用 **PBKDF2 加盐慢哈希**存储，绝不落明文
 
@@ -65,12 +65,6 @@
 - **每人文章上限**（默认 10 篇），发布后提示「已发 N/10 篇」
 - 编辑器带**实时预览**，正文可插入图片
 - 作者只能改自己的文章，站长可以管理所有人的
-
-### 评论
-
-- 发表 / 删除，游客可以看评论，登录后才能发言
-- 评论长度上限 500 字
-- 站长可**禁言**用户：被禁言的人不能评论，但仍可正常浏览、听歌、管理自己的文章
 
 ### 每日推歌 · 曲库
 
@@ -121,11 +115,10 @@
 hello-spring/
 ├── src/main/java/com/example/hello_spring/
 │   ├── ArticleController.java      文章：发布 / 列表 / 详情 / 编辑 / 删除
-│   ├── CommentController.java      评论：列表 / 发表 / 删除
-│   ├── UserController.java         用户：注册 / 登录 / 配额 / 头像 / 昵称
+│   ├── UserController.java         用户：登录 / 站点能力 / 头像 / 昵称
 │   ├── SongController.java         曲库：今日推歌 / 列表 / 上传 / 指定推荐 / 删除
 │   ├── SettingController.java      站点外观：背景图 / 遮罩 / 主题配色 / 图片取色
-│   ├── AdminController.java        站长：用户列表 / 禁言
+│   ├── AdminController.java        站长：用户列表
 │   ├── UploadController.java       正文插图上传
 │   ├── common/
 │   │   ├── Auth.java               登录态与权限判断（current / isAdmin / canManage）
@@ -202,20 +195,21 @@ mvnw.cmd spring-boot:run
 
 打开 <http://localhost:8080/>。
 
-### 5. 把自己变成站长
+### 5. 创建站长账号
 
-注册出来的账号默认是普通用户。需要手工执行一次 SQL 提升为管理员：
+本项目**不提供注册功能**，只有 `role='admin'` 的账号能登录，所以第一次要先手工建一个。
+密码需要用项目自带的工具生成摘要（PBKDF2-HMAC-SHA256）：
 
-```sql
-UPDATE `user` SET `role` = 'admin' WHERE `username` = '你的用户名';
+```bash
+HASH=$(java deploy/PasswordHash.java '你的密码')
+mysql -u shiguang -p -e "USE blog; INSERT INTO \`user\`(username, password, nickname, role) \
+  VALUES('你的用户名', '$HASH', '站长', 'admin');"
 ```
 
-之后重新登录，顶栏会出现「后台」入口。
+之后打开 `https://你的域名或服务器IP/admin.html` 登录（必须是 **https**）。
 
-> 忘记密码时可以用 `deploy/PasswordHash.java` 生成摘要再更新数据库：
-> ```bash
-> java deploy/PasswordHash.java 你的新密码
-> ```
+> 忘记密码时同理，用 `java deploy/PasswordHash.java '新密码'` 生成摘要后
+> `UPDATE \`user\` SET \`password\` = '新摘要' WHERE \`username\` = '你的用户名';`
 
 ---
 
@@ -232,20 +226,19 @@ UPDATE `user` SET `role` = 'admin' WHERE `username` = '你的用户名';
 | `DB_PASSWORD` | 空 | 数据库密码 |
 | `UPLOAD_DIR` | `uploads` | 上传文件目录，服务器上建议填绝对路径 |
 | `STATIC_LOCATIONS` | `classpath:/static/` | 设为 `file:/opt/shiguang/static/,classpath:/static/` 可让外部目录优先，改前端不用重新打包 |
-| `REGISTRATION_ENABLED` | `true` | 是否开放注册 |
-| `COMMENTS_ENABLED` | `true` | 是否开放评论（关闭后只显示「评论功能已暂时关闭」） |
-| `REQUIRE_HTTPS_LOGIN` | `false` | 是否强制登录 / 注册走 HTTPS（本地开发保持 false） |
-| `MAX_USERS` | `10` | 全站账号上限 |
+| `LOGIN_ENABLED` | `true` | 是否受理登录（`false` = 整站只读，白名单 IP 仍可登录） |
+| `LOGIN_ALLOWED_IPS` | 空 | 允许登录的 IP，逗号分隔；空 = 不限制 |
+| `REQUIRE_HTTPS_LOGIN` | `false` | 是否强制登录走 HTTPS（本地开发保持 false） |
 | `MAX_ARTICLES_PER_USER` | `10` | 每人文章上限 |
 | `MAX_SONGS_PER_USER` | `10` | 每人歌曲上限 |
 | `SERVER_ADDRESS` | `127.0.0.1`（仅 prod） | 只监听回环，对外由 nginx 反代 |
 
-也就是说：想改配额、临时关闭注册或评论，**不用改代码也不用重新打包**，在服务器 `.env` 里加一行再重启即可。
-比如备案期间需要暂时去掉用户生成内容：
+也就是说：想改配额或登录策略，**不用改代码也不用重新打包**，在服务器 `.env` 里加一行再重启即可。
+比如备案审核期间让整站对外只读、但自己还能发文：
 
 ```bash
-REGISTRATION_ENABLED=false   # 关闭注册（顶栏的「注册」链接会自动隐藏）
-COMMENTS_ENABLED=false       # 关闭评论（文章页只显示「评论功能已暂时关闭」）
+LOGIN_ENABLED=false                        # 整站只读，页面上不出现登录入口
+LOGIN_ALLOWED_IPS=1.2.3.4                  # 但 1.2.3.4 这台机器仍然可以登录发文
 ```
 
 ---
@@ -286,16 +279,15 @@ COMMENTS_ENABLED=false       # 关闭评论（文章页只显示「评论功能�
 
 | 方法 | 路径 | 说明 | 权限 |
 |---|---|---|---|
-| POST | `/user/register` | 注册 | 公开 |
 | POST | `/user/login` | 登录 | 公开 |
 | GET | `/user/me` | 当前登录状态（未登录 `data` 为 `null`） | 公开 |
-| GET | `/user/quota` | 注册名额：上限 / 已用 / 剩余 | 公开 |
+| GET | `/user/quota` | 是否显示登录入口（按请求方 IP 计算） | 公开 |
 | POST | `/user/logout` | 退出登录 | 公开 |
 | GET | `/user/limits` | 我的配额：已发文章 / 已传歌曲 | 需登录 |
 | POST | `/user/avatar` | 上传头像（multipart `avatar`） | 需登录 |
 | POST | `/user/nickname` | 修改昵称 | 需登录 |
 
-注册校验：用户名 2~20 字符、密码至少 6 位、用户名不重复、名额未满。
+登录只接受 `role='admin'` 的站长账号；站点没有任何注册入口。
 登录失败时「用户不存在」和「密码错误」返回**同一句提示**，不暴露哪些用户名已注册。
 
 ### 文章 `/article`
@@ -307,20 +299,12 @@ COMMENTS_ENABLED=false       # 关闭评论（文章页只显示「评论功能�
 | POST | `/article/{id}/view` | 上报一次浏览（服务端判定后计数，返回最新值） | 公开 |
 | POST | `/article/publish` | 发布文章 | 需登录 |
 | POST | `/article/update` | 编辑文章 | 需登录 + 作者或站长 |
-| POST | `/article/delete` | 删除文章（连带清掉评论） | 需登录 + 作者或站长 |
+| POST | `/article/delete` | 删除文章 | 需登录 + 作者或站长 |
 
 标题上限 100 字、摘要上限 200 字。编辑**不会**重置浏览量。
 
 > 浏览量刻意与「读详情」分开：GET 保持无副作用，计数交给前端渲染完成后调用的
 > `POST /article/{id}/view`，细节见[浏览量设计](#浏览量get-必须无副作用--两层去重)。
-
-### 评论 `/comment`
-
-| 方法 | 路径 | 说明 | 权限 |
-|---|---|---|---|
-| GET | `/comment/list?articleId=` | 某篇文章的评论（时间正序） | 公开 |
-| POST | `/comment/add` | 发表评论 | 需登录（被禁言则拒绝） |
-| POST | `/comment/delete` | 删除评论 | 需登录 + 作者或站长 |
 
 ### 曲库 `/song`
 
@@ -352,10 +336,7 @@ COMMENTS_ENABLED=false       # 关闭评论（文章页只显示「评论功能�
 
 | 方法 | 路径 | 说明 | 权限 |
 |---|---|---|---|
-| GET | `/admin/users` | 用户列表 + 每人文章/歌曲/评论数 | 仅站长 |
-| POST | `/admin/mute?userId=&muted=` | 禁言 / 解除禁言 | 仅站长 |
-
-站长不能禁言自己，也不能禁言其他管理员。
+| GET | `/admin/users` | 用户列表 + 每人文章/歌曲数 | 仅站长 |
 
 ### 其它
 
@@ -373,7 +354,6 @@ COMMENTS_ENABLED=false       # 关闭评论（文章页只显示「评论功能�
 |---|---|---|
 | `user` | 用户 | `username`(唯一)、`password`(PBKDF2 摘要)、`nickname`、`avatar`、`role`(user/admin)、`muted` |
 | `article` | 文章 | `user_id`、`title`、`content`(Markdown)、`summary`、`view_count`、`create_time`、`update_time` |
-| `comment` | 评论 | `article_id`、`user_id`、`content`(≤500) |
 | `song` | 曲库 | `title`、`artist`、`cover_url`、`audio_url`、`lyric`、`user_id`、`recommend_date`(唯一索引) |
 | `site_setting` | 站点配置 | 键值对：`bgImage`、`bgDim`、`logoImage`、`accent`、`accent2`、`accent3`、`themePreset` |
 
@@ -559,26 +539,26 @@ UPDATE article SET view_count = view_count + 1, update_time = update_time WHERE 
 
 - 用户**不能自己修改密码**（忘了只能走 `PasswordHash.java` 手工重置），也没有找回密码流程
 - 文章列表**没有分页**，是全量返回；也没有搜索、标签、分类
-- 评论没有分页与回复层级；没有点赞
-- 注册与登录**没有频率限制和验证码**，只靠全站名额上限兜底
+- 站点不提供评论、点赞、关注等社交功能（这是刻意的取舍，见下方「已知局限」）
+- 登录**没有频率限制和验证码**，暴力破解只能靠强密码 + 登录 IP 白名单来防
 
 **实现上的取舍与待改进**
 
-- **没有 `@Transactional`**：删文章（先删评论再删文章）、指定推荐（先清后设）等多步操作不是原子的；
+- **没有 `@Transactional`**：删除文章、指定推荐（先清后设）等多步操作不是原子的；
   配额校验存在并发下被绕过的可能
 - 数据库层**没有外键约束**，一致性靠代码保证；也**没有删除用户**的接口
 - 图片白名单里包含 `webp`，但 JDK 的 `ImageIO` 不支持解码 webp，
   所以 webp 背景图**能上传却无法自动取色**
 - `markdown.js` 未校验链接的 URL scheme，`[x](javascript:...)` 会被原样输出（属性逃逸已被封堵，属低危）
 - Session 存在内存里，服务重启即全员登出，也暂时无法多机部署
-- 注册与登录没有频率限制和验证码，只靠全站名额上限兜底
+- 登录没有频率限制和验证码，靠 `LOGIN_ALLOWED_IPS` 白名单兜底
 
 **后续计划**
 
 - [ ] 关键写操作加 `@Transactional`，消除配额校验的并发窗口
 - [ ] 文章分页与搜索
 - [ ] 用户自助修改密码
-- [ ] 注册/登录加频率限制
+- [ ] 登录接口加频率限制
 - [ ] 有余力时把 Session 换成 Redis 或 JWT
 
 ---

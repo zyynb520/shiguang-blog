@@ -46,24 +46,6 @@
     <div class="skeleton" style="height:15px;width:72%"></div>
   </article>
 
-  <!-- 文章底部区域（只读模式下整块 hidden，不会渲染） -->
-  <section class="comments" id="comments" hidden>
-    <h2 class="section-title">评论 <span class="count" id="comment-count"></span></h2>
-
-    <div id="comment-list"></div>
-
-    <form class="comment-form" id="comment-form" hidden>
-      <textarea class="textarea" id="comment-input" maxlength="500" style="min-height:100px"
-        placeholder="说点什么……（最多 500 字）"></textarea>
-      <div class="comment-form-row">
-        <span class="hint" style="margin:0" id="comment-hint"></span>
-        <button class="btn btn-primary btn-sm" type="submit" id="comment-submit">发表评论</button>
-      </div>
-    </form>
-
-    <!-- 提示文案运行时由脚本填入，页面源码里不写死交互文案 -->
-    <div class="comment-login-tip" id="comment-login-tip" hidden></div>
-  </section>
 </main>
 
 <footer class="site-footer">

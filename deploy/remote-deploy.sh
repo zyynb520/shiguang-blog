@@ -95,8 +95,8 @@ done
 echo ""
 echo "=== 8. 写接口鉴权（应全部 401）==="
 for p in /article/publish /article/update /article/delete /song/upload /song/delete \
-         /comment/add /comment/delete /upload/image /user/avatar /user/nickname \
-         /admin/mute /setting/bg /setting/logo /setting/clearLogo /setting/theme; do
+         /upload/image /user/avatar /user/nickname \
+         /setting/bg /setting/logo /setting/clearLogo /setting/theme; do
   C=$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:8080$p")
   printf "  %-18s HTTP %s\n" "$p" "$C"
   if [ "$C" != "401" ]; then FAIL=1; fi

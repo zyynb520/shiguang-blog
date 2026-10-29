@@ -193,46 +193,50 @@ sudo ufw status
 
 ## 9. 创建管理员账号（关键一步）
 
-**注意：代码不会自动创建管理员。** 注册出来的账号角色一律是 `user`，
-项目里也没有「把用户提升为管理员」的接口，所以第一次部署必须手工提权一次。
+**本项目不提供注册功能，只有站长（`role='admin'`）能登录。**
+所以第一次部署必须直接用 SQL 建一个管理员账号，密码要用项目自带的工具生成哈希。
 
-先注册一个账号（注册默认**开放**，用 `MAX_USERS` 限制总人数）：
+### 9.1 生成密码哈希
 
-```bash
-curl -X POST http://localhost:8080/user/register \
-  -H "Content-Type: application/json" \
-  -d '{"username":"你的用户名","password":"你的密码","nickname":"站长"}'
-```
-
-返回 `{"code":200,"data":"注册成功，本站还有 9 个名额",...}` 就成功了。
-
-然后手工把这个账号提升为管理员：
+`deploy/PasswordHash.java` 是项目自带的生成器（PBKDF2-HMAC-SHA256，210000 次迭代）：
 
 ```bash
-mysql -u shiguang -p -e "USE blog; UPDATE \`user\` SET \`role\`='admin' WHERE \`username\`='你的用户名';"
+java deploy/PasswordHash.java '你的密码'
+# 输出形如：pbkdf2$sha256$210000$<salt>$<hash>   （87 个字符）
 ```
 
-验证一下：
+### 9.2 写入数据库
+
+把上一步的输出替换到下面的 `$HASH` 里：
+
+```bash
+HASH=$(java deploy/PasswordHash.java '你的密码')
+mysql -u shiguang -p -e "USE blog; INSERT INTO \`user\`(username, password, nickname, role) \
+  VALUES('你的用户名', '$HASH', '站长', 'admin');"
+```
+
+验证：
 
 ```bash
 mysql -u shiguang -p -e "USE blog; SELECT id, username, role FROM \`user\`;"
-# role 应该是 admin
+# role 必须是 admin，否则登录会被拒绝
 ```
 
-> 登录态里的角色是**登录那一刻的快照**，所以提权之后要**退出再重新登录**才会生效。
+### 9.3 登录
 
-之后浏览器打开 `http://你的服务器IP:8080/admin.html` 登录，顶栏会出现「后台」入口，
-就能发文章、上传歌曲了。
+浏览器打开 `https://你的域名或服务器IP/admin.html` 登录，进去就能发文章、传歌。
 
-**关于注册开关**：注册默认开放，靠 `MAX_USERS`（默认 10）限制总人数，
-**不是**「第一个用户注册完就自动关闭」。想临时关掉注册，在 `/opt/shiguang/.env` 里加一行：
+> 登录接口只接受 `role='admin'` 的账号，并且要求走 **HTTPS**
+> （`REQUIRE_HTTPS_LOGIN=true`）；用 `http://` 登录会被拒绝并提示改用 https。
 
-```bash
-REGISTRATION_ENABLED=false
-```
+### 9.4 登录开关与 IP 白名单
 
-然后 `sudo systemctl restart shiguang-blog`，之后注册接口返回
-`{"code":400,...,"msg":"站点已关闭注册"}`。
+登录入口默认只对**站长本人**和**IP 白名单**内的地址显示，公开访客页面上看不到任何入口：
+
+| 变量 | 作用 |
+|---|---|
+| `LOGIN_ENABLED` | 是否受理登录；设 `false` 则整站对外只读，但白名单 IP 仍可登录 |
+| `LOGIN_ALLOWED_IPS` | 允许登录的 IP，逗号分隔；家里是动态 IP 时，SSH 上去跑 `bash /opt/shiguang/allow-login-from-me.sh` 自动更新 |
 
 ---
 

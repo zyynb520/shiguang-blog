@@ -17,7 +17,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 只拦截"写"接口；文章列表/详情、曲库、今日推歌、评论列表、站点配置都对游客公开
+        // 只拦截"写"接口；文章列表/详情、曲库、今日推歌、站点配置都对游客公开
         registry.addInterceptor(new LoginInterceptor())
                 .addPathPatterns("/article/publish")
                 .addPathPatterns("/article/update")
@@ -25,9 +25,6 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/song/upload")
                 .addPathPatterns("/song/recommend")
                 .addPathPatterns("/song/delete")
-                .addPathPatterns("/comment/add")
-                .addPathPatterns("/comment/delete")
-                .addPathPatterns("/admin/mute")
                 .addPathPatterns("/upload/image")
                 .addPathPatterns("/user/avatar")
                 .addPathPatterns("/user/nickname")

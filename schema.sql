@@ -68,20 +68,6 @@ CREATE TABLE IF NOT EXISTS `song` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='每日推歌曲库';
 
 -- ------------------------------------------------------------
---  评论表
---  没有建外键：删除文章时由后端代码把该文章的评论一并清掉。
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `comment` (
-  `id`          INT          NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `article_id`  INT          NOT NULL                COMMENT '文章 ID',
-  `user_id`     INT          NOT NULL                COMMENT '评论人 ID',
-  `content`     VARCHAR(500) NOT NULL                COMMENT '评论内容',
-  `create_time` DATETIME     DEFAULT CURRENT_TIMESTAMP COMMENT '评论时间',
-  PRIMARY KEY (`id`),
-  KEY `idx_article_id` (`article_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='评论表';
-
--- ------------------------------------------------------------
 --  站点配置表（键值对）
 --  目前用到七个键：
 --    bgImage      背景图访问路径，如 /uploads/bg/xxx.jpg，没有这行代表用默认极光背景

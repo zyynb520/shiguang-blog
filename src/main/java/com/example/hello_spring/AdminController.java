@@ -4,7 +4,6 @@ import com.example.hello_spring.common.Auth;
 import com.example.hello_spring.common.Result;
 import com.example.hello_spring.entity.User;
 import com.example.hello_spring.mapper.ArticleMapper;
-import com.example.hello_spring.mapper.CommentMapper;
 import com.example.hello_spring.mapper.SongMapper;
 import com.example.hello_spring.mapper.UserMapper;
 import jakarta.servlet.http.HttpSession;
@@ -36,12 +35,6 @@ public class AdminController {
     @Autowired
     private SongMapper songMapper;
 
-    @Autowired
-    private CommentMapper commentMapper;
-
-    @Value("${app.max-users:10}")
-    private int maxUsers;
-
     /** 用户列表（含每人发了多少内容），仅管理员 */
     @GetMapping("/users")
     public Result<Map<String, Object>> users(HttpSession session) {
@@ -61,37 +54,11 @@ public class AdminController {
             m.put("createTime", u.getCreateTime());
             m.put("articles", articleMapper.countByUser(u.getId()));
             m.put("songs", songMapper.countByUser(u.getId()));
-            m.put("comments", commentMapper.countByUser(u.getId()));
             list.add(m);
         }
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("users", list);
-        data.put("maxUsers", maxUsers);
         return Result.success(data);
-    }
-
-    /** 禁言 / 解除禁言（仅管理员）。被禁言的人不能发表评论，但仍能浏览 */
-    @PostMapping("/mute")
-    public Result<String> mute(@RequestParam Integer userId,
-                               @RequestParam boolean muted,
-                               HttpSession session) {
-        User me = Auth.current(session);
-        if (!Auth.isAdmin(me)) {
-            return Result.error(ADMIN_ONLY);
-        }
-        if (me.getId().equals(userId)) {
-            return Result.error("不能禁言自己");
-        }
-        User target = userMapper.findById(userId);
-        if (target == null) {
-            return Result.error("用户不存在");
-        }
-        if ("admin".equals(target.getRole())) {
-            return Result.error("不能禁言其他管理员");
-        }
-
-        userMapper.updateMuted(userId, muted);
-        return Result.success((muted ? "已禁言 " : "已解除禁言 ") + target.displayName());
     }
 }

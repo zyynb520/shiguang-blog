@@ -49,10 +49,6 @@ public interface ArticleMapper {
     @Delete("DELETE FROM article WHERE id = #{id}")
     int deleteById(Integer id);
 
-    /** 删文章时把它的评论一起清掉，避免留下孤儿数据 */
-    @Delete("DELETE FROM comment WHERE article_id = #{id}")
-    int deleteCommentsByArticleId(Integer id);
-
     /**
      * 更新文章内容。
      * 只改标题/正文/摘要，不动作者和浏览数；update_time 由表上的

@@ -27,11 +27,9 @@
       host.innerHTML = '<a href="/admin.html">后台</a><span class="nav-user">' +
         window.avatarHtml(name, res.data.avatar, 26) + esc(name) + '</span>';
     } else {
-      // 只读模式下顶栏不留任何入口按钮；开放登录后再按注册开关决定是否显示「注册」
-      var cap = await window.loadSiteCapabilities();
-      host.innerHTML = cap.loginEnabled
-        ? '<a href="/admin.html">登录</a>' +
-          (cap.registrationEnabled ? '<a href="/admin.html#register">注册</a>' : '')
+      // 只有站长（或登录白名单内的 IP）会拿到 true；其余访客这里一个入口都不留
+      host.innerHTML = (await window.loadLoginEntryVisible())
+        ? '<a href="/admin.html">登录</a>'
         : '';
     }
   }

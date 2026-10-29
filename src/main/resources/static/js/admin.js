@@ -87,90 +87,6 @@
     }
   });
 
-  /* ---------------- 注册 ---------------- */
-  var authMode = 'login';
-
-  function setAuthMode(mode) {
-    authMode = mode;
-    var isLogin = mode === 'login';
-    document.getElementById('login-form').hidden = !isLogin;
-    document.getElementById('register-form').hidden = isLogin;
-    document.getElementById('auth-title').textContent = isLogin ? '登录' : '注册';
-    document.getElementById('auth-sub').textContent = isLogin
-      ? '登录后可以发文章、传歌、评论'
-      : '注册后就能发文章、传歌、评论';
-    document.getElementById('auth-toggle').textContent = isLogin
-      ? '还没有账号？注册一个'
-      : '已经有账号了？去登录';
-  }
-
-  document.getElementById('auth-toggle').addEventListener('click', function (e) {
-    e.preventDefault();
-    setAuthMode(authMode === 'login' ? 'register' : 'login');
-  });
-
-  // 已经在本页时点 #register 不会重新加载，靠这个监听切换
-  function onHashChange() {
-    if (location.hash === '#register') setAuthMode('register');
-    else if (location.hash === '#login') setAuthMode('login');
-  }
-  window.addEventListener('hashchange', onHashChange);
-  // 软导航换页会重新执行本脚本，这个全局监听要登记起来清掉
-  (window.__pageCleanups = window.__pageCleanups || []).push(function () {
-    window.removeEventListener('hashchange', onHashChange);
-  });
-
-  /** 显示注册名额还剩多少 */
-  async function loadQuotaHint() {
-    var hint = document.getElementById('quota-hint');
-    var res = await API.get('/user/quota');
-    if (!res.ok || !res.data) { hint.textContent = ''; return; }
-    var d = res.data;
-    if (!d.registrationEnabled) {
-      hint.innerHTML = '本站已关闭注册';
-      document.getElementById('auth-toggle').hidden = true;
-    } else if (d.remaining > 0) {
-      hint.innerHTML = '本站已有 <b>' + d.used + '</b> 个账号，还剩 <b>' + d.remaining + '</b> 个名额';
-    } else {
-      hint.innerHTML = '注册名额已满（上限 ' + d.maxUsers + ' 个账号）';
-      document.getElementById('auth-toggle').hidden = true;
-    }
-  }
-
-  document.getElementById('register-form').addEventListener('submit', async function (e) {
-    e.preventDefault();
-    var btn = document.getElementById('register-btn');
-    btn.disabled = true;
-    btn.textContent = '注册中…';
-
-    var res = await API.postJSON('/user/register', {
-      username: document.getElementById('reg-username').value.trim(),
-      nickname: document.getElementById('reg-nickname').value.trim(),
-      password: document.getElementById('reg-password').value
-    });
-
-    btn.disabled = false;
-    btn.textContent = '注册';
-
-    if (res.ok) {
-      window.toast(res.msg || '注册成功');
-      // 注册完直接登录，省一次输入
-      var login = await API.postJSON('/user/login', {
-        username: document.getElementById('reg-username').value.trim(),
-        password: document.getElementById('reg-password').value
-      });
-      document.getElementById('reg-password').value = '';
-      if (login.ok) {
-        refresh();
-      } else {
-        setAuthMode('login');
-        document.getElementById('login-username').value = document.getElementById('reg-username').value.trim();
-      }
-    } else {
-      window.toast(res.msg, 'err');
-    }
-  });
-
   /* ---------------- 我的资料 ---------------- */
   async function loadProfile() {
     if (!currentUser) return;
@@ -585,19 +501,12 @@
     }
 
     var users = (res.data && res.data.users) || [];
-    var max = (res.data && res.data.maxUsers) || 10;
-    countEl.textContent = '共 ' + users.length + ' / ' + max + ' 个名额';
+    countEl.textContent = '共 ' + users.length + ' 个账号';
 
     box.innerHTML = users.map(function (u) {
       var isMe = currentUser && currentUser.id === u.id;
       var isAdmin = u.role === 'admin';
       var name = u.nickname || u.username;
-
-      // 自己和管理员不能禁言
-      var actions = (isMe || isAdmin) ? '' :
-        (u.muted
-          ? '<button type="button" class="btn btn-sm" data-act="unmute">解除禁言</button>'
-          : '<button type="button" class="btn btn-sm btn-danger" data-act="mute">禁言</button>');
 
       return '' +
         '<div class="song-row" data-id="' + u.id + '">' +
@@ -605,42 +514,16 @@
           '<div class="info">' +
             '<div class="t">' + esc(name) +
               (isAdmin ? '<span class="tag-today">站长</span>' : '') +
-              (u.muted ? '<span class="tag-muted">已禁言</span>' : '') +
               (isMe ? '<span class="tag-me">这是你</span>' : '') +
             '</div>' +
             '<div class="a">@' + esc(u.username) +
-              ' · 文章 ' + u.articles + ' · 歌曲 ' + u.songs + ' · 评论 ' + u.comments +
-              ' · 注册于 ' + esc(window.formatDate(u.createTime)) +
+              ' · 文章 ' + u.articles + ' · 歌曲 ' + u.songs +
+              ' · 创建于 ' + esc(window.formatDate(u.createTime)) +
             '</div>' +
           '</div>' +
-          '<div class="actions">' + actions + '</div>' +
         '</div>';
     }).join('');
   }
-
-  $id('user-list').addEventListener('click', async function (e) {
-    var btn = e.target.closest('button[data-act]');
-    if (!btn) return;
-
-    var row = btn.closest('.song-row');
-    var id = row.dataset.id;
-    var name = row.querySelector('.info .t').textContent;
-    var muted = btn.dataset.act === 'mute';
-
-    if (muted && !confirm('确定禁言「' + name + '」吗？\n\n' +
-        '对方将不能再发表评论（仍可浏览网站、播放歌曲）。')) return;
-
-    btn.disabled = true;
-    var res = await API.postParams('/admin/mute', { userId: id, muted: muted });
-    btn.disabled = false;
-
-    if (res.ok) {
-      window.toast(res.msg || '已操作');
-      loadUsers();
-    } else {
-      window.toast(res.msg, 'err');
-    }
-  });
 
   /* ---------------- 站点设置：站点图标 ---------------- */
   var logoFileEl = document.getElementById('logo-file');
@@ -908,8 +791,5 @@
 
   /* ---------------- 启动 ---------------- */
   applySite();
-  // 从首页点「注册」过来会是 /admin.html#register，直接切到注册表单
-  setAuthMode(location.hash === '#register' ? 'register' : 'login');
-  loadQuotaHint();
   refresh();
 })();

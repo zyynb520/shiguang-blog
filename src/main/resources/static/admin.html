@@ -35,11 +35,11 @@
 
 <main class="wrap admin-page">
 
-  <!-- ============ 未登录：登录 / 注册 ============ -->
+  <!-- ============ 未登录：站长登录（本站不开放注册） ============ -->
   <section id="view-login" hidden>
     <div class="glass login-card">
-      <h2 id="auth-title">登录</h2>
-      <p class="sub" id="auth-sub">登录后可以发文章、传歌、评论</p>
+      <h2>站长登录</h2>
+      <p class="sub">本站不开放注册，仅站长可以登录管理内容</p>
 
       <form id="login-form">
         <div class="field">
@@ -52,29 +52,6 @@
         </div>
         <button class="btn btn-primary" type="submit" id="login-btn" style="width:100%">登录</button>
       </form>
-
-      <form id="register-form" hidden>
-        <div class="field">
-          <label for="reg-username">用户名</label>
-          <input class="input" id="reg-username" maxlength="20" autocomplete="username" required>
-          <div class="hint">2~20 个字符，注册后不能改</div>
-        </div>
-        <div class="field">
-          <label for="reg-nickname">昵称</label>
-          <input class="input" id="reg-nickname" maxlength="20" placeholder="留空就用用户名">
-        </div>
-        <div class="field">
-          <label for="reg-password">密码</label>
-          <input class="input" id="reg-password" type="password" autocomplete="new-password" required>
-          <div class="hint">至少 6 位，会用 PBKDF2 加盐哈希后入库</div>
-        </div>
-        <button class="btn btn-primary" type="submit" id="register-btn" style="width:100%">注册</button>
-      </form>
-
-      <p class="hint" style="text-align:center;margin-top:18px">
-        <a href="#" id="auth-toggle" style="color:var(--accent);font-weight:600">还没有账号？注册一个</a>
-      </p>
-      <p class="hint" style="text-align:center" id="quota-hint"></p>
     </div>
   </section>
 
@@ -135,7 +112,7 @@
     <div class="panel" id="panel-posts">
       <h3 class="section-title" style="font-size:16.5px">全部文章 <span class="count" id="post-count"></span></h3>
       <p class="hint" style="margin:-8px 0 16px">
-        删除会同时清掉数据库记录和它的评论，<strong>无法恢复</strong>，删之前请确认。
+        删除会同时清掉数据库记录，<strong>无法恢复</strong>，删之前请确认。
       </p>
       <div id="post-list"></div>
     </div>
@@ -212,7 +189,7 @@
             <input class="input" id="nickname-input" maxlength="20" style="flex:1;min-width:200px">
             <button class="btn" type="button" id="nickname-save">保存昵称</button>
           </div>
-          <div class="hint">昵称会显示在文章、评论和顶栏上</div>
+          <div class="hint">昵称会显示在文章和顶栏上</div>
         </div>
 
         <div class="hint" id="profile-quota" style="margin-top:20px"></div>
@@ -223,8 +200,8 @@
     <div class="panel" id="panel-users">
       <h3 class="section-title" style="font-size:16.5px">全部用户 <span class="count" id="user-count"></span></h3>
       <p class="hint" style="margin:-8px 0 16px">
-        被禁言的用户<strong>不能再发表评论</strong>，但仍然可以浏览网站、播放歌曲。
-        别人发的文章和评论你随时可以删除 —— 在「文章管理」里，或直接到文章页的评论区点删除。
+        本站不开放注册，也不提供评论功能，只有站长可以登录。
+        这里列出的是库里已有的账号，仅供查看。
       </p>
       <div id="user-list"></div>
     </div>

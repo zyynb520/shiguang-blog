@@ -114,29 +114,24 @@
   /* ---------------- 轻提示 ---------------- */
 
   /**
-   * 站点当前开放了哪些能力（登录 / 注册）。
+   * 站点是否显示登录入口。
    *
-   * <p>顶栏要据此决定显不显示「登录 / 注册」入口 —— 站点处于只读模式时，
-   * 页面上不该留任何交互入口。结果缓存在 window 上，多页面脚本共用一次请求。
+   * <p>本站已删除注册功能、且只允许站长登录，所以顶栏最多只有一个「登录」链接。
+   * 登录入口是否可见由后端按请求方 IP 判断：只有站长本人和白名单内的 IP
+   * 会拿到 true，其余访客拿 false，页面不会渲染任何入口。
    *
-   * <p>请求失败时保守地当作「都关闭」：备案审核期间宁可少显示一个按钮，
-   * 也不能多露出一个交互入口。
+   * <p>结果缓存在 window 上，多页面脚本共用一次请求。
+   * 请求失败时按「不显示」处理 —— 宁可少露一个按钮。
    */
-  window.loadSiteCapabilities = function () {
-    if (!window.__capPromise) {
-      window.__capPromise = request('/user/quota').then(function (res) {
-        if (res.ok && res.data) {
-          return {
-            loginEnabled: res.data.loginEnabled !== false,
-            registrationEnabled: res.data.registrationEnabled === true
-          };
-        }
-        return { loginEnabled: false, registrationEnabled: false };
+  window.loadLoginEntryVisible = function () {
+    if (!window.__loginEntryPromise) {
+      window.__loginEntryPromise = request('/user/quota').then(function (res) {
+        return !!(res.ok && res.data && res.data.loginEnabled === true);
       }).catch(function () {
-        return { loginEnabled: false, registrationEnabled: false };
+        return false;
       });
     }
-    return window.__capPromise;
+    return window.__loginEntryPromise;
   };
 
   window.toast = function (msg, type) {

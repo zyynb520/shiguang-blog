@@ -167,14 +167,8 @@ public class ArticleController {
             return Result.error("只能删除自己发布的文章");
         }
 
-        int comments = articleMapper.deleteCommentsByArticleId(id);
         articleMapper.deleteById(id);
-
-        String msg = "已删除《" + article.getTitle() + "》";
-        if (comments > 0) {
-            msg += "，同时清掉了 " + comments + " 条评论";
-        }
-        return Result.success(msg);
+        return Result.success("已删除《" + article.getTitle() + "》");
     }
 
     private static boolean isBlank(String value) {
